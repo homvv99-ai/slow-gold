@@ -8,21 +8,33 @@
 body{background:#14100b;color:#e8dcc0;font-family:Tahoma,Segoe UI,sans-serif;margin:0;padding:24px}
 h1{color:#d4af37} .card{background:#1f1913;border:1px solid #3a2f1d;border-radius:12px;padding:16px;margin:12px 0}
 .big{font-size:2em;color:#d4af37} .dim{color:#9a8b6a} table{width:100%;border-collapse:collapse} td,th{padding:6px;border-bottom:1px solid #3a2f1d;text-align:right}
-#voice{font-size:1.3em;color:#f0e6c8;border-right:4px solid #d4af37;padding:8px}
+#voice{font-size:1.3em;color:#f0e6c8;border-right:4px solid #d4af37;padding:8px;animation:fadein .9s ease}
 .soft{color:#c9b98f;line-height:1.8;border-right:3px solid #6b5a3a;padding:6px 10px;margin-top:10px;background:#191410;border-radius:6px}
 .g{color:#7ec97e}.r{color:#e07b7b}
+#state{display:inline-block;padding:6px 14px;border-radius:10px;font-size:1.2em}
+#state.LONG{color:#7ec97e;border:1px solid #7ec97e;animation:pulseG 2.2s infinite}
+#state.FLAT{color:#d8c060;border:1px solid #d8c060;animation:pulseY 3.4s infinite}
+#turtle{display:inline-block;animation:floaty 4s ease-in-out infinite}
+.ticker{overflow:hidden;border-block:1px solid #3a2f1d;padding:5px 0;margin:10px 0;color:#c9b98f}
+.ticker span{display:inline-block;white-space:nowrap;animation:tick 45s linear infinite}
+@keyframes pulseG{0%,100%{box-shadow:0 0 0 0 rgba(126,201,126,.45)}50%{box-shadow:0 0 20px 5px rgba(126,201,126,.22)}}
+@keyframes pulseY{0%,100%{box-shadow:0 0 0 0 rgba(216,192,96,.45)}50%{box-shadow:0 0 20px 5px rgba(216,192,96,.20)}}
+@keyframes floaty{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+@keyframes fadein{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes tick{from{transform:translateX(33.333%)}to{transform:translateX(0)}}
 </style>
 </head>
 <body>
-<h1>🐢 Slow Gold — الذهب الصبور</h1>
+<h1><span id="turtle">🐢</span> Slow Gold — الذهب الصبور</h1>
 <div class="dim">الصبر، منشورًا | بيانات بينانس الرسمية منذ 2020 | دفتر لا يُحرَّر</div>
+<div class="ticker"><span id="tick"></span></div>
 <div class="card"><b>ما هذا المكان؟</b> آلة تراقب الذهب كل يوم وتتخذ قرارًا واحدًا فقط: تدخل أم تنتظر. لا نعدك بالربح؛ نعدك بثلاث: لا نكذب، لا نخفي خسارة، لا نستعجل. <b>اقرأه يوميات علنية — لا أمرًا بالشراء.</b></div>
 <div class="card"><div id="voice">…</div><div class="dim" id="updated"></div></div>
 <div class="card"><a href="mirror.html" style="color:#d4af37;font-size:1.1em">🪞 افتح المرآة: كم كان صار مالك لو بدأ عام 2020؟</a></div>
 <div class="card">
 <span class="big" id="state">…</span> — <span id="price"></span>$
 <div>أيام داخل الحالة: <b id="days"></b> | دخول: <span id="entry"></span></div>
-<div class="soft">إن رأيت 🟢: الآلة داخل صفقة منذ التاريخ المكتوب. وإن رأيت ⚪: قرّرت الانتظار — <b>والانتظار هنا قرارٌ لا تردّد</b>.</div>
+<div class="soft">إن رأيت 🟢 ينبض: الآلة داخل صفقة منذ التاريخ المكتوب. وإن رأيت 🟡 يتنفس ببطء: قرّرت الانتظار — <b>والانتظار هنا قرارٌ لا تردّد</b>.</div>
 </div>
 <div class="card"><table><tr>
 <td>الرصيد<br><b class="big" id="feq"></b></td>
@@ -56,22 +68,32 @@ const LINES=[
 ["اليوم انتظر معك آلاف هادئين — الصبر الجماعي أقوى من الفردي.","لست وحدك خارج السوق؛ نحن خارج معك، وبخطة.","كل منتظر هنا يعرف اسم العاصفة السابقة ونجا منها.","مجتمعنا لا يحتفل بالضجيج؛ يحتفل بالنجاة."],
 ["رسالة الجمعة تصل قريبًا: حكاية أسبوع كامل من الصبر.","كل جمعة نكتب ما لا تقوله الأرقام وحدها.","هذا الأسبوع علّمنا السوق درسًا واحدًا — سنرويه كاملًا.","اجعل قهوتك جاهزة؛ الرسالة تُنشر عند الغروب."],
 ["كل يوم نقول فيه (لا)، هو يوم لا تدفع فيه ثمن اندفاعك.","رأس مالك سنوات عمرك المودعة — مهمتنا أن نحرسها.","الخسارة الحقيقية ليست ما فاتك، بل ما دخلته بلا خطة.","الدرع المرفوع اليوم هو النجاة التي ستفهمها لاحقًا."]];
-const d=new Date();
-document.getElementById("voice").textContent=LINES[d.getDay()][Math.floor(d.getHours()/6)%4];
+const POOL=LINES.flat();
+function voiceTick(){
+const idx=Math.floor(Date.now()/240000)%POOL.length;
+const el=document.getElementById("voice");
+if(el.dataset.i!=idx){el.dataset.i=idx;el.style.animation="none";void el.offsetWidth;el.style.animation="";el.textContent=POOL[idx];}
+}
+voiceTick();setInterval(voiceTick,10000);
+function anim(el,val,dec,suf){const t0=performance.now();function f(t){const p=Math.min((t-t0)/1400,1);el.textContent=(val*p).toFixed(dec)+(suf||"");if(p<1)requestAnimationFrame(f);}requestAnimationFrame(f);}
 const j=p=>fetch(p).then(r=>r.json());
 Promise.all([j("data/signal.json"),j("data/stats.json"),j("data/ledger_trades.json"),j("data/ledger_waits.json"),j("data/equity.json")])
 .then(([s,st,tr,wa,eq])=>{
-document.getElementById("state").textContent=s.state=="LONG"?"🟢 داخل السوق (LONG)":"⚪ درع مرفوع (FLAT)";
-document.getElementById("price").textContent=s.price;
+const stEl=document.getElementById("state");
+stEl.className=s.state;
+stEl.textContent=s.state=="LONG"?"🟢 داخل السوق (LONG)":"🟡 درع مرفوع — انتظار (FLAT)";
+anim(document.getElementById("price"),s.price,2,"");
 document.getElementById("days").textContent=s.days_in_state;
 document.getElementById("entry").textContent=s.entry_date||"—";
 document.getElementById("updated").textContent="آخر تحديث سحابي: "+s.generated_at+" UTC";
-document.getElementById("feq").textContent=st.final_eq;
-document.getElementById("fret").textContent=st.total_ret_pct+"%";
-document.getElementById("fdd").textContent=st.max_dd_pct+"%";
-document.getElementById("pf").textContent=st.profit_factor;
-document.getElementById("win").textContent=st.win_pct+"%";
-document.getElementById("nopct").textContent=st.no_pct+"%";
+const tk=`معامل الربح ${st.profit_factor} ◆ أيام (لا) ${st.no_pct}% ◆ أطول درع ${st.waits_longest||196} يومًا ◆ 2022: ربحت والذهب يهبط ◆ العصبي خسر من ماله لا من السوق ◆ دفتر موقع ببصمة لا تُكسر ◆ `;
+document.getElementById("tick").innerHTML="<span>"+tk+tk+tk+"</span>";
+anim(document.getElementById("feq"),st.final_eq,2,"");
+anim(document.getElementById("fret"),st.total_ret_pct,2,"%");
+anim(document.getElementById("fdd"),st.max_dd_pct,2,"%");
+anim(document.getElementById("pf"),st.profit_factor,2,"");
+anim(document.getElementById("win"),st.win_pct,1,"%");
+anim(document.getElementById("nopct"),st.no_pct,0,"%");
 document.getElementById("g1").textContent=st.ghosts.buy_hold;
 document.getElementById("g2").textContent=st.ghosts.dca;
 document.getElementById("g3").textContent=st.ghosts.nervous;
@@ -80,8 +102,9 @@ document.getElementById("wn").textContent=st.waits_n;
 document.getElementById("wl").textContent=st.waits_longest||wa.reduce((m,w)=>Math.max(m,w.days),0);
 document.getElementById("saved").innerHTML="<tr><th>بداية</th><th>أيام</th><th>هبوط السوق وأنت محمي</th></tr>"+st.waits_saved_top.map(w=>`<tr><td>${w.start}</td><td>${w.days}</td><td class="g">${w.mkt_chg_pct}%</td></tr>`).join("");
 document.getElementById("trades").innerHTML="<tr><th>دخول</th><th>خروج</th><th>أيام</th><th>نتيجة</th></tr>"+tr.slice(-10).reverse().map(t=>`<tr><td>${t.entry_date}</td><td>${t.exit_date}</td><td>${t.days}</td><td class="${t.ret_pct>=0?'g':'r'}">${t.ret_pct}%</td></tr>`).join("");
-const pts=eq.filter((_,i)=>i%15==0),mn=Math.min(...pts.map(p=>p[1])),mx=Math.max(...pts.map(p=>p[1]));
+const pts=eq.filter((_,i)=>i%15==0),mn=Math.min(...pts.map(p=>p[1]),100),mx=Math.max(...pts.map(p=>p[1]),100);
 document.getElementById("spark").innerHTML='<polyline fill="none" stroke="#d4af37" stroke-width="2" points="'+pts.map((p,i)=>`${i*(600/pts.length)},${115-(p[1]-mn)/(mx-mn)*110}`).join(" ")+'"/>';
+try{const pl=document.querySelector("#spark polyline");const L=pl.getTotalLength();pl.style.strokeDasharray=L;pl.style.strokeDashoffset=L;pl.getBoundingClientRect();pl.style.transition="stroke-dashoffset 2.6s ease";pl.style.strokeDashoffset="0";}catch(e){}
 });
 </script>
 </body>
