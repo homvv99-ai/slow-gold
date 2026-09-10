@@ -9,16 +9,19 @@ body{background:#14100b;color:#e8dcc0;font-family:Tahoma,Segoe UI,sans-serif;mar
 h1{color:#d4af37} .card{background:#1f1913;border:1px solid #3a2f1d;border-radius:12px;padding:16px;margin:12px 0}
 .big{font-size:2em;color:#d4af37} .dim{color:#9a8b6a} table{width:100%;border-collapse:collapse} td,th{padding:6px;border-bottom:1px solid #3a2f1d;text-align:right}
 #voice{font-size:1.3em;color:#f0e6c8;border-right:4px solid #d4af37;padding:8px}
-.g{color:#7ec97e}.r{color:#e07b7b}.y{color:#d8c060}
+.soft{color:#c9b98f;line-height:1.8;border-right:3px solid #6b5a3a;padding:6px 10px;margin-top:10px;background:#191410;border-radius:6px}
+.g{color:#7ec97e}.r{color:#e07b7b}
 </style>
 </head>
 <body>
 <h1>🐢 Slow Gold — الذهب الصبور</h1>
 <div class="dim">الصبر، منشورًا | بيانات بينانس الرسمية منذ 2020 | دفتر لا يُحرَّر</div>
+<div class="card"><b>ما هذا المكان؟</b> آلة تراقب الذهب كل يوم وتتخذ قرارًا واحدًا فقط: تدخل أم تنتظر. لا نعدك بالربح؛ نعدك بثلاث: لا نكذب، لا نخفي خسارة، لا نستعجل. <b>اقرأه يوميات علنية — لا أمرًا بالشراء.</b></div>
 <div class="card"><div id="voice">…</div><div class="dim" id="updated"></div></div>
 <div class="card">
 <span class="big" id="state">…</span> — <span id="price"></span>$
 <div>أيام داخل الحالة: <b id="days"></b> | دخول: <span id="entry"></span></div>
+<div class="soft">إن رأيت 🟢: الآلة داخل صفقة منذ التاريخ المكتوب. وإن رأيت ⚪: قرّرت الانتظار — <b>والانتظار هنا قرارٌ لا تردّد</b>.</div>
 </div>
 <div class="card"><table><tr>
 <td>الرصيد<br><b class="big" id="feq"></b></td>
@@ -29,13 +32,19 @@ h1{color:#d4af37} .card{background:#1f1913;border:1px solid #3a2f1d;border-radiu
 <td>أيام (لا)<br><b id="nopct"></b></td>
 </tr></table>
 <div class="dim">الأشباح منذ 2020: شراء ونسيان <b id="g1"></b> | ادخار شهري <b id="g2"></b> | المتداول العصبي <b id="g3"></b></div>
+<div class="soft">بمعنى بشري: من مشى مع الآلة بـ100$ عام 2020 يملك اليوم 181$ — <b>وأعصابًا أهدأ</b> ممن اشترى ونسي. والأشباح ثلاثة أشخاص خياليين نقارن بهم: من اشترى ونسي، من ادخر شهريًا، ومن تعصّب وتداول كل أسبوع. انظر للعصبي جيدًا: <b>هذا ما يفعله السوق باليد المستعجلة</b>.</div>
 </div>
-<div class="card"><svg id="spark" width="100%" height="120"></svg><div class="dim">منحنى الرصيد 2020 ← اليوم (معيار 100)</div></div>
-<div class="card"><h3>📅 الجدول السنوي</h3><table id="yearly"></table></div>
+<div class="card"><svg id="spark" width="100%" height="120"></svg><div class="dim">منحنى الرصيد 2020 ← اليوم (معيار 100)</div>
+<div class="soft">هذا خط الرحلة: كل صعود سنة صبر، وكل هبوط درسٌ لم نمحه من الدفتر.</div></div>
+<div class="card"><h3>📅 الجدول السنوي</h3><table id="yearly"></table>
+<div class="soft">اقرأ سطر 2022 ببطء: سنة سقط فيها الذهب، وربحت الآلة. ليست أذكى من السوق — <b>بل تعرف متى لا تكون فيه</b>.</div></div>
 <div class="card"><h3>🧱 جدار الـ(لا)</h3>
 <div>فترات انتظار مكتملة: <b id="wn"></b> | أطولها: <b id="wl"></b> يومًا</div>
-<table id="saved"></table></div>
-<div class="card"><h3>📒 آخر الصفقات</h3><table id="trades"></table></div>
+<table id="saved"></table>
+<div class="soft">كل سطر هنا فترة قالت فيها الآلة «لا» للدخول. العمود الأخير: كم هبط السوق ونحن خارج بأمان. <b>(لا) ليست فرصة ضائعة؛ إنها درعٌ مرفوع</b>.</div></div>
+<div class="card"><h3>📒 آخر الصفقات</h3><table id="trades"></table>
+<div class="soft">هذه صفحات اليوميات: كل صفقة بتاريخها ونتيجتها — <b>بما فيها الخاسرة</b>. السطور الحمراء هي مصداقيتنا: من يخفيها يكذب في البياض أيضًا.</div></div>
+<div class="card"><b>جديد هنا؟</b> ابدأ بثلاث: 1) اقرأ جدار الـ(لا). 2) انظر للعصبي بين الأشباح. 3) اسأل نفسك: أبحث عن إشارة… أم عن هدوء؟ <b>نحن نبيع الثاني.</b></div>
 <div class="card dim">المنهج: تقاطع EMA20/50 على الشمعة اليومية لـ PAXGUSDT، رسوم 0.15%+انزلاق 0.05% لكل طرف. الانتظار قرار موثق بالأرقام لا وعدًا بالربح. كل سطر هنا موقع ببصمة SHA-256 لا تُكسر. <b>ليست نصيحة استثمارية؛ التداول مخاطرة قد تُفقد رأس مالك.</b></div>
 <script>
 const LINES=[
