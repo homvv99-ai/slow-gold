@@ -8,22 +8,35 @@ SYMBOL, INTERVAL, START = "PAXGUSDT", "1d", "2020-01-01"
 COST = 0.0020
 WARM = 60
 OUT = Path("out"); OUT.mkdir(exist_ok=True)
+HOSTS = ["https://data-api.binance.vision",
+         "https://api.binance.com",
+         "https://api1.binance.com",
+         "https://api2.binance.com"]
 
 def fetch():
-    url = "https://api.binance.com/api/v3/klines"
-    ms = int(pd.Timestamp(START, tz="UTC").timestamp() * 1000)
-    rows = []
-    while True:
-        try:
-            b = requests.get(url, params={"symbol": SYMBOL, "interval": INTERVAL,
-                                          "startTime": ms, "limit": 1000}, timeout=20).json()
-        except Exception as e:
-            print("خطأ في جلب البيانات:", e); sys.exit(1)
-        if not b: break
-        rows += b
-        ms = b[-1][0] + 1
-        if len(b) < 1000: break
-        time.sleep(0.3)
+    start_ms = int(pd.Timestamp(START, tz="UTC").timestamp() * 1000)
+    rows, last_err = [], None
+    for host in HOSTS:
+        rows, cur, ok = [], start_ms, True
+        while True:
+            try:
+                b = requests.get(host + "/api/v3/klines",
+                                 params={"symbol": SYMBOL, "interval": INTERVAL,
+                                         "startTime": cur, "limit": 1000}, timeout=20).json()
+            except Exception as e:
+                last_err = e; ok = False; break
+            if isinstance(b, dict) or not b:
+                last_err = str(b)[:200]; ok = False; break
+            rows += b
+            cur = b[-1][0] + 1
+            if len(b) < 1000:
+                break
+            time.sleep(0.2)
+        if ok and rows:
+            print("data host:", host)
+            break
+    else:
+        print("fetch failed:", last_err); sys.exit(1)
     df = pd.DataFrame(rows, columns=["ot","open","high","low","close","vol",
                                      "ct","a","b","c","d","e"])
     for col in ["open","high","low","close","vol"]:
@@ -40,7 +53,7 @@ def shift(a, n):
     return out
 
 def main():
-    print("جاري جلب البيانات من بينانس (2020 ← اليوم)...")
+    print("جاري جلب البيانات (2020 ← اليوم)...")
     df = fetch()
     print(f"تم جلب {len(df)} شمعة يومية.")
     c = df["close"].values
@@ -120,6 +133,8 @@ def main():
 
     stats = {"generated_at": str(pd.Timestamp.now(tz="UTC"))[:19],
              "period": [START, str(dates[-1])[:10]],
+             "last_date": str(dates[-1])[:10],
+             "last_close": round(float(c[-1]), 2),
              "days_total": int(len(df)), "no_pct": round((~pos).mean()*100, 1),
              "final_eq": round(eqs.iloc[-1], 2),
              "total_ret_pct": round(eqs.iloc[-1]-100, 2),
@@ -138,17 +153,9 @@ def main():
     pd.DataFrame(waits).to_csv(OUT/"ledger_waits.csv", index=False)
     eqs.to_csv(OUT/"daily_equity.csv", header=["equity"])
     (OUT/"stats.json").write_text(json.dumps(stats, ensure_ascii=False, indent=1), encoding="utf-8")
-
     print("="*58)
-    print(f"الفترة: {stats['period'][0]} ← {stats['period'][1]}")
     print(f"الرصيد النهائي: {stats['final_eq']}  ({stats['total_ret_pct']:+.1f}%)")
-    print(f"أكبر تراجع: {stats['max_dd_pct']}%")
-    print(f"الصفقات: {stats['trades_n']}  |  نسبة الفوز: {stats['win_pct']}%")
-    print(f"معامل الربح: {stats['profit_factor']}")
-    print(f"أيام (لا): {stats['no_pct']}% من الأيام")
-    print(f"الأشباح: شراء ونسيان {stats['ghosts']['buy_hold']}")
-    print(f"         ادخار شهري {stats['ghosts']['dca']}")
-    print(f"         عصبي {stats['ghosts']['nervous']}")
+    print(f"أكبر تراجع: {stats['max_dd_pct']}% | صفقات: {stats['trades_n']} | فوز: {stats['win_pct']}%")
     print("="*58)
 
 main()
