@@ -1,7 +1,6 @@
 import json, hashlib, subprocess, sys
 from pathlib import Path
 import pandas as pd
-import requests
 
 ROOT = Path(__file__).parent
 SITE = ROOT / "site" / "data"
@@ -14,11 +13,8 @@ trades = pd.read_csv(ROOT / "out" / "ledger_trades.csv")
 waits = pd.read_csv(ROOT / "out" / "ledger_waits.csv")
 eq = pd.read_csv(ROOT / "out" / "daily_equity.csv", index_col=0)
 
-k = requests.get("https://api.binance.com/api/v3/klines",
-                 params={"symbol": "PAXGUSDT", "interval": "1d", "limit": 2},
-                 timeout=20).json()
-last_date = str(pd.to_datetime(k[-2][0], unit="ms", utc=True))[:10]
-last_close = float(k[-2][4])
+last_date = stats["last_date"]
+last_close = stats["last_close"]
 
 last = trades.iloc[-1]
 in_mkt = str(last["exit_date"]) == "OPEN"
