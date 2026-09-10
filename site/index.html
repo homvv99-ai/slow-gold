@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Slow Gold — الذهب الصبور</title>
+<style>
+body{background:#14100b;color:#e8dcc0;font-family:Tahoma,Segoe UI,sans-serif;margin:0;padding:24px}
+h1{color:#d4af37} .card{background:#1f1913;border:1px solid #3a2f1d;border-radius:12px;padding:16px;margin:12px 0}
+.big{font-size:2em;color:#d4af37} .dim{color:#9a8b6a} table{width:100%;border-collapse:collapse} td,th{padding:6px;border-bottom:1px solid #3a2f1d;text-align:right}
+#voice{font-size:1.3em;color:#f0e6c8;border-right:4px solid #d4af37;padding:8px}
+.g{color:#7ec97e}.r{color:#e07b7b}.y{color:#d8c060}
+</style>
+</head>
+<body>
+<h1>🐢 Slow Gold — الذهب الصبور</h1>
+<div class="dim">الصبر، منشورًا | بيانات بينانس الرسمية منذ 2020 | دفتر لا يُحرَّر</div>
+<div class="card"><div id="voice">…</div><div class="dim" id="updated"></div></div>
+<div class="card">
+<span class="big" id="state">…</span> — <span id="price"></span>$
+<div>أيام داخل الحالة: <b id="days"></b> | دخول: <span id="entry"></span></div>
+</div>
+<div class="card"><table><tr>
+<td>الرصيد<br><b class="big" id="feq"></b></td>
+<td>العائد<br><b id="fret"></b></td>
+<td>أكبر تراجع<br><b id="fdd"></b></td>
+<td>معامل الربح<br><b id="pf"></b></td>
+<td>الفوز<br><b id="win"></b></td>
+<td>أيام (لا)<br><b id="nopct"></b></td>
+</tr></table>
+<div class="dim">الأشباح منذ 2020: شراء ونسيان <b id="g1"></b> | ادخار شهري <b id="g2"></b> | المتداول العصبي <b id="g3"></b></div>
+</div>
+<div class="card"><svg id="spark" width="100%" height="120"></svg><div class="dim">منحنى الرصيد 2020 ← اليوم (معيار 100)</div></div>
+<div class="card"><h3>📅 الجدول السنوي</h3><table id="yearly"></table></div>
+<div class="card"><h3>🧱 جدار الـ(لا)</h3>
+<div>فترات انتظار مكتملة: <b id="wn"></b> | أطولها: <b id="wl"></b> يومًا</div>
+<table id="saved"></table></div>
+<div class="card"><h3>📒 آخر الصفقات</h3><table id="trades"></table></div>
+<div class="card dim">المنهج: تقاطع EMA20/50 على الشمعة اليومية لـ PAXGUSDT، رسوم 0.15%+انزلاق 0.05% لكل طرف. الانتظار قرار موثق بالأرقام لا وعدًا بالربح. كل سطر هنا موقع ببصمة SHA-256 لا تُكسر. <b>ليست نصيحة استثمارية؛ التداول مخاطرة قد تُفقد رأس مالك.</b></div>
+<script>
+const LINES=[
+["أنت لست مقامرًا تأخر حظه… أنت صياد لم يحن وقته بعد.","قبيلة الباقين لا تطارد السوق؛ تنتظره أن يأتي إليها.","الصبر ليس بطيئًا؛ الصبر دقيق التصويب.","من يعرف نفسه لا يستعجل إثباتها لأحد."],
+["خصمك ليس الذهب… خصمك الإشعار الذي يلمع في جيبك الآن.","أخطر جملة في التداول: (هذه فرصة لن تتكرر).","السوق لا يسرق أحدًا؛ الاندفاع يسلّمه المفاتيح.","كل شمعة حمراء لم تدخلها… معركة لم تخضها بلا سلاح."],
+["نعرض خسائرنا أولًا؛ فمن يخفيها لا تُصدَّق أرباحه.","في دفترنا سطور حمراء لا نمحوها — لأنها معلمنا الأول.","الصدق عند الخسارة هو رأس مالنا الحقيقي.","لا نعدك بالربح؛ نعدك ألا نكذب عليك أبدًا."],
+["السوق لا يكافئ الأسرع… بل الأبقى.","الصمت موقف كامل العتاد.","خارج السوق… داخل الخطة.","الدرع لا يلمع… لكنه يُبقيك حيًا."],
+["اليوم انتظر معك آلاف هادئين — الصبر الجماعي أقوى من الفردي.","لست وحدك خارج السوق؛ نحن خارج معك، وبخطة.","كل منتظر هنا يعرف اسم العاصفة السابقة ونجا منها.","مجتمعنا لا يحتفل بالضجيج؛ يحتفل بالنجاة."],
+["رسالة الجمعة تصل قريبًا: حكاية أسبوع كامل من الصبر.","كل جمعة نكتب ما لا تقوله الأرقام وحدها.","هذا الأسبوع علّمنا السوق درسًا واحدًا — سنرويه كاملًا.","اجعل قهوتك جاهزة؛ الرسالة تُنشر عند الغروب."],
+["كل يوم نقول فيه (لا)، هو يوم لا تدفع فيه ثمن اندفاعك.","رأس مالك سنوات عمرك المودعة — مهمتنا أن نحرسها.","الخسارة الحقيقية ليست ما فاتك، بل ما دخلته بلا خطة.","الدرع المرفوع اليوم هو النجاة التي ستفهمها لاحقًا."]];
+const d=new Date();
+document.getElementById("voice").textContent=LINES[d.getDay()][Math.floor(d.getHours()/6)%4];
+const j=p=>fetch(p).then(r=>r.json());
+Promise.all([j("data/signal.json"),j("data/stats.json"),j("data/ledger_trades.json"),j("data/ledger_waits.json"),j("data/equity.json")])
+.then(([s,st,tr,wa,eq])=>{
+document.getElementById("state").textContent=s.state=="LONG"?"🟢 داخل السوق (LONG)":"⚪ درع مرفوع (FLAT)";
+document.getElementById("price").textContent=s.price;
+document.getElementById("days").textContent=s.days_in_state;
+document.getElementById("entry").textContent=s.entry_date||"—";
+document.getElementById("updated").textContent="آخر تحديث سحابي: "+s.generated_at+" UTC";
+document.getElementById("feq").textContent=st.final_eq;
+document.getElementById("fret").textContent=st.total_ret_pct+"%";
+document.getElementById("fdd").textContent=st.max_dd_pct+"%";
+document.getElementById("pf").textContent=st.profit_factor;
+document.getElementById("win").textContent=st.win_pct+"%";
+document.getElementById("nopct").textContent=st.no_pct+"%";
+document.getElementById("g1").textContent=st.ghosts.buy_hold;
+document.getElementById("g2").textContent=st.ghosts.dca;
+document.getElementById("g3").textContent=st.ghosts.nervous;
+document.getElementById("yearly").innerHTML="<tr><th>سنة</th><th>عائد</th><th>أقصى تراجع</th></tr>"+st.yearly.map(y=>`<tr><td>${y.year}</td><td class="${y.ret_pct>=0?'g':'r'}">${y.ret_pct}%</td><td>${y.maxdd_pct}%</td></tr>`).join("");
+document.getElementById("wn").textContent=st.waits_n;
+document.getElementById("wl").textContent=st.waits_longest||wa.reduce((m,w)=>Math.max(m,w.days),0);
+document.getElementById("saved").innerHTML="<tr><th>بداية</th><th>أيام</th><th>هبوط السوق وأنت محمي</th></tr>"+st.waits_saved_top.map(w=>`<tr><td>${w.start}</td><td>${w.days}</td><td class="g">${w.mkt_chg_pct}%</td></tr>`).join("");
+document.getElementById("trades").innerHTML="<tr><th>دخول</th><th>خروج</th><th>أيام</th><th>نتيجة</th></tr>"+tr.slice(-10).reverse().map(t=>`<tr><td>${t.entry_date}</td><td>${t.exit_date}</td><td>${t.days}</td><td class="${t.ret_pct>=0?'g':'r'}">${t.ret_pct}%</td></tr>`).join("");
+const pts=eq.filter((_,i)=>i%15==0),mn=Math.min(...pts.map(p=>p[1])),mx=Math.max(...pts.map(p=>p[1]));
+document.getElementById("spark").innerHTML='<polyline fill="none" stroke="#d4af37" stroke-width="2" points="'+pts.map((p,i)=>`${i*(600/pts.length)},${115-(p[1]-mn)/(mx-mn)*110}`).join(" ")+'"/>';
+});
+</script>
+</body>
+</html>
