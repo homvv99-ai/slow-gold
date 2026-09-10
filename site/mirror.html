@@ -11,25 +11,31 @@ h1{color:#d4af37}
 .soft{color:#c9b98f;line-height:1.8;border-right:3px solid #6b5a3a;padding:6px 10px;margin-top:10px;background:#191410;border-radius:6px}
 .dim{color:#9a8b6a}
 .trio{display:flex;gap:12px;flex-wrap:wrap}
-.who{flex:1;min-width:150px;background:#191410;border-radius:10px;padding:12px;text-align:center}
+.who{flex:1;min-width:150px;background:#191410;border-radius:10px;padding:12px;text-align:center;animation:fadein .8s ease}
 .who b{display:block;font-size:1.4em;margin:6px 0}
 input,button{font-size:1.1em;padding:8px;border-radius:8px;border:1px solid #3a2f1d;background:#191410;color:#e8dcc0;margin:4px}
 button{cursor:pointer;border-color:#d4af37}
 .g{color:#7ec97e}.r{color:#e07b7b}.y{color:#d8c060}
+.home{position:sticky;top:6px;display:inline-block;background:#d4af37;color:#14100b;font-weight:bold;padding:10px 20px;border-radius:10px;text-decoration:none;box-shadow:0 0 14px rgba(212,175,55,.45);animation:pulseGold 3s infinite;z-index:9}
+@keyframes pulseGold{0%,100%{box-shadow:0 0 6px rgba(212,175,55,.35)}50%{box-shadow:0 0 22px rgba(212,175,55,.65)}}
+@keyframes fadein{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 </style>
 </head>
 <body>
-<h1>🪞 المرآة — أرقامك أنت، لا أرقامنا</h1>
-<div class="dim"><a href="index.html" style="color:#d4af37">← العودة للدفتر</a> | كل نسبة هنا من الدفتر الموقع 2020←2026 بعد الرسوم والانزلاق</div>
-<div class="card"><b>الفكرة:</b> المئة دولار مثالٌ فقير لمن يملك الكثير، وجبلٌ لمن يبدأ. لذا لا نريك أرقامنا — <b>نريك مالك أنت</b> وهو يلبس أربعة أقنعة منذ 2020.</div>
+<a class="home" href="index.html">← العودة إلى الدفتر الرئيسي 🐢</a>
+<h1>🪞 المرآة — مالك أنت، لا أرقامنا</h1>
+<div class="dim">كل نسبة هنا من الدفتر الموقع 2020←2026 بعد الرسوم والانزلاق</div>
+<div class="card"><b>هذا المبلغ… لو سُلم عام 2020 لأربع أيادٍ مختلفة، كم تعود كل يدٍ به اليوم؟</b><br>
+يدٌ صبرت بخطة، يدٌ اشترت ونسيت، يدٌ ادخرت بانتظام، ويدٌ ارتجفت فباعت وشربت كل أسبوع.
+<b>الأربعة بدأوا بنفس الرقم الذي ستكتبه بعد ثانية — واختلفت المصائر.</b></div>
 <div class="card trio">
-<div class="who">🐢<b class="g" id="r1">…</b>مع الآلة الصبورة<br><span class="dim">داخل السوق 58% من الأيام فقط</span></div>
-<div class="who">👴<b class="y" id="r2">…</b>اشترى ونسي<br><span class="dim">ربح أكثر في الصعود… وركب كل الهبوط وحده</span></div>
-<div class="who">🐜<b class="y" id="r3">…</b>ادخر نفس المبلغ شهريًا<br><span class="dim">انضباط جميل بلا توقيت</span></div>
-<div class="who">😰<b class="r" id="r4">…</b>توأمك العصبي<br><span class="dim">تداول كل أسبوع خوفًا… هذا ما تبقّى</span></div>
+<div class="who">🐢<b class="g" id="r1">…</b>اليد الصبورة<br><span class="dim">داخل السوق 58% من الأيام فقط</span></div>
+<div class="who">👴<b class="y" id="r2">…</b>اليد الناسية<br><span class="dim">ربحت أكثر في الصعود… وركبت كل هبوط وحدها</span></div>
+<div class="who">🐜<b class="y" id="r3">…</b>اليد المدخرة<br><span class="dim">انضباط جميل بلا توقيت</span></div>
+<div class="who">😰<b class="r" id="r4">…</b>اليد المرتجفة<br><span class="dim">تداولت كل أسبوع خوفًا… هذا ما تبقّى لها</span></div>
 </div>
 <div class="card">
-<b>كم كان رأس مالك عام 2020؟</b> <span class="dim">(بأي عملة تشاء — النسب واحدة)</span>
+<b>اكتب رقمك — بأي عملة تشاء، النسب واحدة:</b>
 <div>
 <button onclick="set(100)">100</button>
 <button onclick="set(1000)">1,000</button>
@@ -40,7 +46,7 @@ button{cursor:pointer;border-color:#d4af37}
 <div class="soft" id="loss"></div>
 <div class="soft" id="dd"></div>
 </div>
-<div class="card"><b>السؤال الذي يهم:</b> ليس «كم تملك؟» بل <b>«أي الأقنعة الأربعة كان يرتدي مالك؟»</b> — نحن نبني لك قناعًا خامسًا: القناع الذي ينام.</div>
+<div class="card"><b>واليد الخامسة؟</b> هي الآلة التي تنام: لا ترتجف، لا تتعب، لا تتفاخر — تدخل حين تصح الإشارة وتنتظر حين لا تصح. <a href="index.html" style="color:#d4af37">تراها تتنفس في الدفتر 🐢</a></div>
 <div class="card dim">الماضي لا يعد بالمستقبل؛ هذه مرآة تاريخ موثق لا وعدٌ. ليست نصيحة استثمارية.</div>
 <script>
 let R={m:1.8127,h:2.2895,d:1.9498,n:0.9754},DD=-18.81;
@@ -55,8 +61,8 @@ document.getElementById("r1").textContent=fmt(v*R.m);
 document.getElementById("r2").textContent=fmt(v*R.h);
 document.getElementById("r3").textContent=fmt(v*R.d);
 document.getElementById("r4").textContent=fmt(v*R.n);
-document.getElementById("loss").innerHTML="😰 لو كان توأمك العصبي يدير هذا المبلغ منذ 2020: <b class='r'>خسر "+fmt(v-v*R.n)+"</b> من مالك الحقيقي — لا كنسبة تُملّ، بل كعملة تعدّها يدك.";
-document.getElementById("dd").innerHTML="🌊 أسوأ لحظة في الرحلة كنت سترى رصيدك <b class='r'>"+DD+"%</b> مؤقتًا… مع الآلة، تلك الليلة كانت عادية.";
+document.getElementById("loss").innerHTML="😰 اليد المرتجفة كانت ستفقد من هذا المبلغ: <b class='r'>"+fmt(v-v*R.n)+"</b> — لا كنسبةٍ تُملّ، بل كعملةٍ تعدّها يدك ورقةً ورقة.";
+document.getElementById("dd").innerHTML="🌊 أسوأ ليلة في الرحلة كلها: كنت سترى رصيدك <b class='r'>"+DD+"%</b> مؤقتًا… مع اليد الصبورة، تلك الليلة كانت عادية.";
 }
 paint();
 </script>
