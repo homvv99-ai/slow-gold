@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>المرآة — Slow Gold</title>
+<style>
+body{background:#14100b;color:#e8dcc0;font-family:Tahoma,Segoe UI,sans-serif;margin:0;padding:24px}
+h1{color:#d4af37}
+.card{background:#1f1913;border:1px solid #3a2f1d;border-radius:12px;padding:16px;margin:12px 0}
+.soft{color:#c9b98f;line-height:1.8;border-right:3px solid #6b5a3a;padding:6px 10px;margin-top:10px;background:#191410;border-radius:6px}
+.dim{color:#9a8b6a}
+.trio{display:flex;gap:12px;flex-wrap:wrap}
+.who{flex:1;min-width:150px;background:#191410;border-radius:10px;padding:12px;text-align:center}
+.who b{display:block;font-size:1.4em;margin:6px 0}
+input,button{font-size:1.1em;padding:8px;border-radius:8px;border:1px solid #3a2f1d;background:#191410;color:#e8dcc0;margin:4px}
+button{cursor:pointer;border-color:#d4af37}
+.g{color:#7ec97e}.r{color:#e07b7b}.y{color:#d8c060}
+</style>
+</head>
+<body>
+<h1>🪞 المرآة — أرقامك أنت، لا أرقامنا</h1>
+<div class="dim"><a href="index.html" style="color:#d4af37">← العودة للدفتر</a> | كل نسبة هنا من الدفتر الموقع 2020←2026 بعد الرسوم والانزلاق</div>
+<div class="card"><b>الفكرة:</b> المئة دولار مثالٌ فقير لمن يملك الكثير، وجبلٌ لمن يبدأ. لذا لا نريك أرقامنا — <b>نريك مالك أنت</b> وهو يلبس أربعة أقنعة منذ 2020.</div>
+<div class="card trio">
+<div class="who">🐢<b class="g" id="r1">…</b>مع الآلة الصبورة<br><span class="dim">داخل السوق 58% من الأيام فقط</span></div>
+<div class="who">👴<b class="y" id="r2">…</b>اشترى ونسي<br><span class="dim">ربح أكثر في الصعود… وركب كل الهبوط وحده</span></div>
+<div class="who">🐜<b class="y" id="r3">…</b>ادخر نفس المبلغ شهريًا<br><span class="dim">انضباط جميل بلا توقيت</span></div>
+<div class="who">😰<b class="r" id="r4">…</b>توأمك العصبي<br><span class="dim">تداول كل أسبوع خوفًا… هذا ما تبقّى</span></div>
+</div>
+<div class="card">
+<b>كم كان رأس مالك عام 2020؟</b> <span class="dim">(بأي عملة تشاء — النسب واحدة)</span>
+<div>
+<button onclick="set(100)">100</button>
+<button onclick="set(1000)">1,000</button>
+<button onclick="set(10000)">10,000</button>
+<button onclick="set(100000)">100,000</button>
+<input id="amt" type="number" value="10000" oninput="paint()">
+</div>
+<div class="soft" id="loss"></div>
+<div class="soft" id="dd"></div>
+</div>
+<div class="card"><b>السؤال الذي يهم:</b> ليس «كم تملك؟» بل <b>«أي الأقنعة الأربعة كان يرتدي مالك؟»</b> — نحن نبني لك قناعًا خامسًا: القناع الذي ينام.</div>
+<div class="card dim">الماضي لا يعد بالمستقبل؛ هذه مرآة تاريخ موثق لا وعدٌ. ليست نصيحة استثمارية.</div>
+<script>
+let R={m:1.8127,h:2.2895,d:1.9498,n:0.9754},DD=-18.81;
+fetch("data/stats.json").then(r=>r.json()).then(st=>{
+R={m:st.final_eq/100,h:st.ghosts.buy_hold/100,d:st.ghosts.dca/100,n:st.ghosts.nervous/100};
+DD=st.max_dd_pct;paint();});
+function set(v){document.getElementById("amt").value=v;paint();}
+function fmt(x){return x.toLocaleString("en-US",{maximumFractionDigits:0});}
+function paint(){
+const v=+document.getElementById("amt").value||0;
+document.getElementById("r1").textContent=fmt(v*R.m);
+document.getElementById("r2").textContent=fmt(v*R.h);
+document.getElementById("r3").textContent=fmt(v*R.d);
+document.getElementById("r4").textContent=fmt(v*R.n);
+document.getElementById("loss").innerHTML="😰 لو كان توأمك العصبي يدير هذا المبلغ منذ 2020: <b class='r'>خسر "+fmt(v-v*R.n)+"</b> من مالك الحقيقي — لا كنسبة تُملّ، بل كعملة تعدّها يدك.";
+document.getElementById("dd").innerHTML="🌊 أسوأ لحظة في الرحلة كنت سترى رصيدك <b class='r'>"+DD+"%</b> مؤقتًا… مع الآلة، تلك الليلة كانت عادية.";
+}
+paint();
+</script>
+</body>
+</html>
