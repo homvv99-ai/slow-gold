@@ -1,0 +1,24 @@
+name: daily
+on:
+  schedule:
+    - cron: "5 0 * * *"
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pandas numpy requests
+      - run: python publish.py
+      - run: |
+          git config user.name "slow-gold-bot"
+          git config user.email "bot@slowgold.local"
+          git add site/data
+          git diff --cached --quiet || git commit -m "daily publish $(date -u +%F)"
+          git push
