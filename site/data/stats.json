@@ -1,20 +1,20 @@
 {
- "generated_at": "2026-09-10 08:55:55",
+ "generated_at": "2026-09-11 00:28:13",
  "period": [
   "2020-01-01",
-  "2026-09-09"
+  "2026-09-10"
  ],
- "last_date": "2026-09-09",
- "last_close": 4395.04,
- "days_total": 2204,
+ "last_date": "2026-09-10",
+ "last_close": 4320.03,
+ "days_total": 2205,
  "no_pct": 42.0,
- "final_eq": 181.27,
- "total_ret_pct": 81.27,
- "max_dd_pct": -18.81,
+ "final_eq": 178.18,
+ "total_ret_pct": 78.18,
+ "max_dd_pct": -19.12,
  "trades_n": 18,
  "win_pct": 47.1,
  "profit_factor": 3.86,
- "avg_hold_days": 70,
+ "avg_hold_days": 71,
  "yearly": [
   {
    "year": 2020,
@@ -48,13 +48,13 @@
   },
   {
    "year": 2026,
-   "ret_pct": 4.52,
-   "maxdd_pct": -18.81
+   "ret_pct": 2.73,
+   "maxdd_pct": -19.12
   }
  ],
  "ghosts": {
-  "buy_hold": 228.95,
-  "dca": 194.98,
+  "buy_hold": 225.04,
+  "dca": 191.65,
   "nervous": 97.54
  },
  "waits_n": 18,
