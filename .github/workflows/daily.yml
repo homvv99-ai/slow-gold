@@ -15,7 +15,11 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install pandas numpy requests
-      - run: python publish.py
+      - name: publish + dawn voice
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHANNEL: ${{ secrets.TELEGRAM_CHANNEL }}
+        run: python publish.py
       - run: |
           git config user.name "slow-gold-bot"
           git config user.email "bot@slowgold.local"
