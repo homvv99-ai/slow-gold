@@ -48,7 +48,7 @@ chain_f.write_text(json.dumps(chain, indent=1), encoding="utf-8")
 (SITE / "equity.json").write_text(json.dumps([[str(i)[:10], round(v, 2)] for i, v in eq["equity"].items()]), encoding="utf-8")
 
 print(f"PUBLISHED {today} | state={signal['state']} | chain={len(chain)} | rows={len(trades)}")
-# ===== Telegram dawn voice (v3.5 — final signed bulletin) =====
+# ===== Telegram dawn voice (v3.6 — final signed bulletin) =====
 import os, urllib.request, urllib.parse, json as _j, datetime as _dt
 _tok = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
 _ch  = os.environ.get("TELEGRAM_CHANNEL", "").strip()
@@ -69,7 +69,7 @@ if _tok and _ch:
         tpart   = gen[11:16] or "00:00"
         d0      = _dt.date.fromisoformat(dpart)
         issue   = (d0 - _dt.date(2020, 1, 1)).days
-        issue_ar = str(issue).translate(str.maketrans("0123456789", "٠١٢٣٤٥٧٨٩"))
+        issue_ar = str(issue).translate(str.maketrans("0123456789", "٠١٣٤٥٧٨٩"))
         wd = ["الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت", "الأحد"][d0.weekday()]
         mantra = ("نحن لا نخمّن القمة؛ نحن نقيس الاتجاه:\n"
                   "حيٌّ نركبه، ومنكسرٌ نترجله —\n"
