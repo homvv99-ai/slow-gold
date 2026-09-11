@@ -48,8 +48,8 @@ chain_f.write_text(json.dumps(chain, indent=1), encoding="utf-8")
 (SITE / "equity.json").write_text(json.dumps([[str(i)[:10], round(v, 2)] for i, v in eq["equity"].items()]), encoding="utf-8")
 
 print(f"PUBLISHED {today} | state={signal['state']} | chain={len(chain)} | rows={len(trades)}")
-# ===== Telegram dawn voice (v3.1) =====
-import os, urllib.request, urllib.parse, json as _j
+# ===== Telegram dawn voice (v3.3 — signed bulletin) =====
+import os, urllib.request, urllib.parse, json as _j, datetime as _dt
 _tok = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
 _ch  = os.environ.get("TELEGRAM_CHANNEL", "").strip()
 if "/" in _ch:
@@ -64,19 +64,31 @@ if _tok and _ch:
         price = sig.get("price", 0)
         days  = sig.get("days_in_state", 0)
         entry = sig.get("entry_date") or "—"
+        gen   = sig.get("generated_at", "")
+        dpart = gen[:10] or "2020-01-01"
+        tpart = gen[11:16] or "00:00"
+        d0    = _dt.date.fromisoformat(dpart)
+        issue = (d0 - _dt.date(2020, 1, 1)).days
+        issue_ar = str(issue).translate(str.maketrans("0123456789", "٠١٢٣٤٥٦٧٨٩"))
+        wd = ["الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت", "الأحد"][d0.weekday()]
         if st == "LONG":
-            head = f"🟢 داخل السوق (LONG) — اليوم {days} من المركز"
-            sub  = f"دخول: {entry} | السعر الآن: {price}$"
+            state_line = "🟢 المركز الحالي: داخل السوق (LONG)"
+            age_line   = f"عمر المركز: {days} يومًا | الدخول: {entry}"
         else:
-            head = "🟡 خارج السوق — سيولة جاهزة (FLAT)"
-            sub  = f"اليوم {days} من الانتظار | السعر الآن: {price}$"
-        txt = (head + "\n" + sub +
-               "\n\n📒 الدفتر الكامل: https://homvv99-ai.github.io/slow-gold/site/"
-               "\n🐢 دفترٌ علنيّ موقع — الصبر قرارٌ موثق")
+            state_line = "🟡 المركز الحالي: خارج السوق — سيولة جاهزة (FLAT)"
+            age_line   = f"عمر الانتظار: {days} يومًا"
+        txt = (f"🐢 نشرة الفجر — العدد {issue_ar}\n"
+               f"{wd} {dpart} | {tpart} UTC\n\n"
+               f"{state_line}\n"
+               f"{age_line} | السعر لحظة النشر: {price}$\n\n"
+               "قاعدة البيت: لا نطارد مركزًا مفتوحًا.\n"
+               "رأس المال الجديد ينتظر نشرة التحوّل القادمة — لا هذه.\n\n"
+               "📒 الدفتر الكامل: https://homvv99-ai.github.io/slow-gold/site/\n"
+               "🐢 دفترٌ علنيّ موقع — الصبر قرارٌ موثق")
         _url = f"https://api.telegram.org/bot{_tok}/sendMessage"
         _data = urllib.parse.urlencode({"chat_id": _ch, "text": txt}).encode()
         urllib.request.urlopen(urllib.request.Request(_url, data=_data), timeout=30).read()
-        print("Telegram: dawn voice delivered to", _ch)
+        print("Telegram: dawn bulletin delivered to", _ch, "| issue", issue)
     except Exception as e:
         _b = ""
         try: _b = e.read().decode()
