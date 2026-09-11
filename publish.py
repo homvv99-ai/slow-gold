@@ -48,7 +48,7 @@ chain_f.write_text(json.dumps(chain, indent=1), encoding="utf-8")
 (SITE / "equity.json").write_text(json.dumps([[str(i)[:10], round(v, 2)] for i, v in eq["equity"].items()]), encoding="utf-8")
 
 print(f"PUBLISHED {today} | state={signal['state']} | chain={len(chain)} | rows={len(trades)}")
-# ===== Telegram dawn voice (v3.3 — signed bulletin) =====
+# ===== Telegram dawn voice (v3.5 — final signed bulletin) =====
 import os, urllib.request, urllib.parse, json as _j, datetime as _dt
 _tok = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
 _ch  = os.environ.get("TELEGRAM_CHANNEL", "").strip()
@@ -60,31 +60,42 @@ if _tok and _ch:
     try:
         _p = os.path.join(os.path.dirname(os.path.abspath(__file__)), "site", "data", "signal.json")
         sig = _j.load(open(_p, encoding="utf-8"))
-        st    = sig.get("state", "FLAT")
-        price = sig.get("price", 0)
-        days  = sig.get("days_in_state", 0)
-        entry = sig.get("entry_date") or "—"
-        gen   = sig.get("generated_at", "")
-        dpart = gen[:10] or "2020-01-01"
-        tpart = gen[11:16] or "00:00"
-        d0    = _dt.date.fromisoformat(dpart)
-        issue = (d0 - _dt.date(2020, 1, 1)).days
-        issue_ar = str(issue).translate(str.maketrans("0123456789", "٠١٢٣٤٥٦٧٨٩"))
+        st      = sig.get("state", "FLAT")
+        price   = sig.get("price", 0)
+        days    = sig.get("days_in_state", 0)
+        entry   = sig.get("entry_date") or "—"
+        gen     = sig.get("generated_at", "")
+        dpart   = gen[:10] or "2020-01-01"
+        tpart   = gen[11:16] or "00:00"
+        d0      = _dt.date.fromisoformat(dpart)
+        issue   = (d0 - _dt.date(2020, 1, 1)).days
+        issue_ar = str(issue).translate(str.maketrans("0123456789", "٠١٢٣٤٥٧٨٩"))
         wd = ["الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت", "الأحد"][d0.weekday()]
+        mantra = ("نحن لا نخمّن القمة؛ نحن نقيس الاتجاه:\n"
+                  "حيٌّ نركبه، ومنكسرٌ نترجله —\n"
+                  "والدفتر يوقّع كل ترجّلٍ بتاريخه.\n")
+        header = f"🐢 نشرة الفجر — العدد {issue_ar}\n{wd} {dpart} | {tpart} UTC\n\n"
         if st == "LONG":
-            state_line = "🟢 المركز الحالي: داخل السوق (LONG)"
-            age_line   = f"عمر المركز: {days} يومًا | الدخول: {entry}"
+            state_block = f"🟢 المركز الحالي: داخل السوق (LONG) — اليوم {days}\nدخول: {entry} | السعر لحظة النشر: {price}$\n\n"
+            if entry != "—" and str(entry) == dpart:
+                decision = ("قرار اليوم: دخولٌ مُعلن.\n"
+                            "كل متبعي الإشارة يدخلون من هنا — بسعرٍ واحد، في اللحظة نفسها.\n"
+                            + mantra)
+            else:
+                decision = ("قرار اليوم: انتظار.\n"
+                            "نقاط الدخول تُعلن في نشرات التحوّل فقط،\n"
+                            "وعندها يدخل القديم والجديد بسعرٍ واحد.\n"
+                            + mantra)
         else:
-            state_line = "🟡 المركز الحالي: خارج السوق — سيولة جاهزة (FLAT)"
-            age_line   = f"عمر الانتظار: {days} يومًا"
-        txt = (f"🐢 نشرة الفجر — العدد {issue_ar}\n"
-               f"{wd} {dpart} | {tpart} UTC\n\n"
-               f"{state_line}\n"
-               f"{age_line} | السعر لحظة النشر: {price}$\n\n"
-               "قاعدة البيت: لا نطارد مركزًا مفتوحًا.\n"
-               "رأس المال الجديد ينتظر نشرة التحوّل القادمة — لا هذه.\n\n"
-               "📒 الدفتر الكامل: https://homvv99-ai.github.io/slow-gold/site/\n"
-               "🐢 دفترٌ علنيّ موقع — الصبر قرارٌ موثق")
+            state_block = f"🟡 المركز الحالي: خارج السوق — سيولة جاهزة (FLAT) — اليوم {days}\nالسعر لحظة النشر: {price}$\n\n"
+            decision = ("قرار اليوم: انتظارٌ في السيولة.\n"
+                        "النشرة القادمة قد تكون نشرة دخول —\n"
+                        "وعندها يدخل القديم والجديد بسعرٍ واحد.\n"
+                        + mantra)
+        txt = (header + state_block + decision +
+               "\n📒 الدفتر الكامل: https://homvv99-ai.github.io/slow-gold/site/"
+               "\n🐢 دفترٌ علنيّ موقع — الصبر قرارٌ موثق"
+               + "\n\n⚖️ التداول ينطوي على مخاطر مالية — ليست نصيحة استثمارية.")
         _url = f"https://api.telegram.org/bot{_tok}/sendMessage"
         _data = urllib.parse.urlencode({"chat_id": _ch, "text": txt}).encode()
         urllib.request.urlopen(urllib.request.Request(_url, data=_data), timeout=30).read()
