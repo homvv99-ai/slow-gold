@@ -23,10 +23,18 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHANNEL: ${{ secrets.TELEGRAM_CHANNEL }}
         run: python publish.py
-      - run: |
+      - name: push ledger (first publisher of the day owns it)
+        run: |
           git config user.name "slow-gold-bot"
           git config user.email "bot@slowgold.local"
-          git add site/data
-          git diff --cached --quiet || git commit -m "daily publish $(date -u +%F)"
-          git pull --rebase origin main || true
-          git push
+          git fetch origin main
+          REMOTE_DATE=$(git show origin/main:site/data/signal.json | python -c "import sys,json;print(json.load(sys.stdin)['date'])" || echo none)
+          LOCAL_DATE=$(python -c "import json;print(json.load(open('site/data/signal.json'))['date'])")
+          echo "remote=$REMOTE_DATE local=$LOCAL_DATE"
+          if [ "$REMOTE_DATE" != "$LOCAL_DATE" ]; then
+            git add site/data
+            git diff --cached --quiet || git commit -m "daily publish $(date -u +%F)"
+            git push origin main
+          else
+            echo "Today's ledger already on remote — skip push"
+          fi
