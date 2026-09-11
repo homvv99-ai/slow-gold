@@ -48,10 +48,14 @@ chain_f.write_text(json.dumps(chain, indent=1), encoding="utf-8")
 (SITE / "equity.json").write_text(json.dumps([[str(i)[:10], round(v, 2)] for i, v in eq["equity"].items()]), encoding="utf-8")
 
 print(f"PUBLISHED {today} | state={signal['state']} | chain={len(chain)} | rows={len(trades)}")
-# ===== Telegram dawn voice (v3) =====
+# ===== Telegram dawn voice (v3.1) =====
 import os, urllib.request, urllib.parse, json as _j
-_tok = os.environ.get("TELEGRAM_BOT_TOKEN", "")
-_ch  = os.environ.get("TELEGRAM_CHANNEL", "")
+_tok = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
+_ch  = os.environ.get("TELEGRAM_CHANNEL", "").strip()
+if "/" in _ch:
+    _ch = _ch.split("/")[-1]
+if _ch and not _ch.startswith("@") and not _ch.lstrip("-").isdigit():
+    _ch = "@" + _ch
 if _tok and _ch:
     try:
         _p = os.path.join(os.path.dirname(os.path.abspath(__file__)), "site", "data", "signal.json")
@@ -59,7 +63,7 @@ if _tok and _ch:
         st    = sig.get("state", "FLAT")
         price = sig.get("price", 0)
         days  = sig.get("days_in_state", 0)
-        entry = sig.get("entry_date", "—")
+        entry = sig.get("entry_date") or "—"
         if st == "LONG":
             head = f"🟢 داخل السوق (LONG) — اليوم {days} من المركز"
             sub  = f"دخول: {entry} | السعر الآن: {price}$"
@@ -72,8 +76,11 @@ if _tok and _ch:
         _url = f"https://api.telegram.org/bot{_tok}/sendMessage"
         _data = urllib.parse.urlencode({"chat_id": _ch, "text": txt}).encode()
         urllib.request.urlopen(urllib.request.Request(_url, data=_data), timeout=30).read()
-        print("Telegram: dawn voice delivered")
+        print("Telegram: dawn voice delivered to", _ch)
     except Exception as e:
-        print("Telegram send failed:", e)
+        _b = ""
+        try: _b = e.read().decode()
+        except Exception: _b = str(e)
+        print("Telegram send failed:", _b)
 else:
     print("Telegram: secrets missing, skip")
