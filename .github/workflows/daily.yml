@@ -3,6 +3,9 @@ on:
   schedule:
     - cron: "5 0 * * *"
   workflow_dispatch:
+concurrency:
+  group: daily-dawn
+  cancel-in-progress: false
 permissions:
   contents: write
 jobs:
@@ -25,4 +28,5 @@ jobs:
           git config user.email "bot@slowgold.local"
           git add site/data
           git diff --cached --quiet || git commit -m "daily publish $(date -u +%F)"
+          git pull --rebase origin main || true
           git push
