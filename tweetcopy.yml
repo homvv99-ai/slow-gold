@@ -1,0 +1,24 @@
+name: tweetcopy
+on:
+  schedule:
+    - cron: "7 0 * * *"
+  workflow_dispatch:
+concurrency:
+  group: tweetcopy
+  cancel-in-progress: false
+permissions:
+  contents: read
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: ready-to-paste X voice
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHANNEL: ${{ secrets.TELEGRAM_CHANNEL }}
+        run: python tweet_copy.py
