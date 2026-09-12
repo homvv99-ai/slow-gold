@@ -1,0 +1,42 @@
+name: confess
+on:
+  workflow_run:
+    workflows: ["daily", "weekly"]
+    types: [completed]
+concurrency:
+  group: confess
+  cancel-in-progress: false
+permissions:
+  contents: read
+jobs:
+  confess:
+    if: github.event.workflow_run.conclusion == 'failure'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: send confession to telegram
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHANNEL: ${{ secrets.TELEGRAM_CHANNEL }}
+          WF: ${{ github.event.workflow_run.name }}
+          URL: ${{ github.event.workflow_run.html_url }}
+          HEAD: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          python - <<'PY'
+          import os, urllib.request, urllib.parse
+          tok = os.environ.get("TELEGRAM_BOT_TOKEN","").strip()
+          ch  = os.environ.get("TELEGRAM_CHANNEL","").strip()
+          if "/" in ch: ch = ch.split("/")[-1]
+          if ch and not ch.startswith("@") and not ch.lstrip("-").isdigit(): ch = "@"+ch
+          wf, url, head = os.environ["WF"], os.environ["URL"], os.environ["HEAD"]
+          txt = (f"🔧 اعتراف العامل — سقط تشغيل: {wf}\n"
+                 f"رابط التشخيص: {url}\n"
+                 f"عند الالتزام: {head[:7]}\n"
+                 "الدفتر لا يكذب: العطل موثق، والإصلاح في موعده.")
+          if tok and ch:
+              data = urllib.parse.urlencode({"chat_id": ch, "text": txt}).encode()
+              urllib.request.urlopen(urllib.request.Request(f"https://api.telegram.org/bot{tok}/sendMessage", data=data), timeout=30).read()
+              print("confession delivered")
+          else:
+              print("secrets missing, skip")
+          PY
