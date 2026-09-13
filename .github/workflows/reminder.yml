@@ -1,0 +1,25 @@
+name: reminder
+on:
+  schedule:
+    - cron: "30 4 * * *"
+    - cron: "0 18 * * *"
+  workflow_dispatch:
+concurrency:
+  group: reminder
+  cancel-in-progress: false
+permissions:
+  contents: read
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: shepherd speaks
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHANNEL: ${{ secrets.TELEGRAM_CHANNEL }}
+        run: python remind.py
