@@ -27,6 +27,18 @@ tweet = (f"🐢 Slow Gold — دفترٌ علنيّ\n"
 
 msg = "🐦 انسخ وانشر في 𝕏:\n\n" + tweet
 
+ep = ""
+tf = D / "thread.json"
+if tf.exists():
+    try:
+        for item in json.loads(tf.read_text(encoding="utf-8")):
+            if item.get("date") == date:
+                ep = item.get("text", "")
+    except Exception:
+        ep = ""
+if ep:
+    msg += "\n\n🧵 حلقة الخيط اليوم (انسخها وانشرها):\n\n" + ep
+
 tok = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
 ch  = os.environ.get("TELEGRAM_CHANNEL", "").strip()
 if "/" in ch:
