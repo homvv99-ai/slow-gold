@@ -1,8 +1,12 @@
-import json, os, urllib.request, urllib.parse
+import json, os, subprocess, sys, urllib.request, urllib.parse
 from pathlib import Path
 
 ROOT = Path(__file__).parent
 D = ROOT / "site" / "data"
+
+# Refresh stats fresh from proof_engine before building tweet
+subprocess.run([sys.executable, str(ROOT / "proof_engine.py")], check=True)
+stats = json.loads((ROOT / "out" / "stats.json").read_text(encoding="utf-8"))
 
 sig = json.loads((D / "signal.json").read_text(encoding="utf-8"))
 
@@ -10,9 +14,9 @@ date   = sig.get("date", "")
 state  = sig.get("state", "FLAT")
 price  = sig.get("price", "")
 days   = sig.get("days_in_state", "")
-dprice = sig.get("decision_price")
-cperf  = sig.get("current_perf_pct")
-lclosed= sig.get("last_closed_trade")
+dprice = stats.get("decision_price")
+cperf  = stats.get("current_perf_pct")
+lclosed= stats.get("last_closed_trade")
 
 lines = ["🐢 إشارة الفجر | ذهب PAXGUSDT", f"📅 {date}"]
 if state == "LONG":
@@ -30,11 +34,7 @@ else:
     if dprice:
         lines.append(f"🛎️ خط العودة: إغلاق أعلى {dprice:.2f}$ ← تنقلب 🟢 غدًا")
 lines.append("⚙️ بلا رافعة، دخول/خروج كامل")
-try:
-    st = json.loads((D / "stats.json").read_text(encoding="utf-8"))
-    lines.append(f"📊 معامل ربح 2020←: {st.get('profit_factor')}")
-except Exception:
-    pass
+lines.append(f"📊 معامل ربح 2020←: {stats.get('profit_factor')}")
 lines.append("📒 الدفتر: https://homvv99-ai.github.io/slow-gold/site/")
 
 tweet = "\n".join(lines)
