@@ -1,129 +1,175 @@
-import json, hashlib, subprocess, sys
+import json, time, sys
 from pathlib import Path
+import numpy as np
 import pandas as pd
+import requests
 
-ROOT = Path(__file__).parent
-SITE = ROOT / "site" / "data"
-SITE.mkdir(parents=True, exist_ok=True)
+SYMBOL, INTERVAL, START = "PAXGUSDT", "1d", "2020-01-01"
+COST = 0.0020
+WARM = 60
+OUT = Path("out"); OUT.mkdir(exist_ok=True)
+HOSTS = ["https://data-api.binance.vision",
+         "https://api.binance.com",
+         "https://api1.binance.com",
+         "https://api2.binance.com"]
 
-subprocess.run([sys.executable, str(ROOT / "proof_engine.py")], check=True)
+def fetch():
+    start_ms = int(pd.Timestamp(START, tz="UTC").timestamp() * 1000)
+    rows, last_err = [], None
+    for host in HOSTS:
+        rows, cur, ok = [], start_ms, True
+        while True:
+            try:
+                b = requests.get(host + "/api/v3/klines",
+                                 params={"symbol": SYMBOL, "interval": INTERVAL,
+                                         "startTime": cur, "limit": 1000}, timeout=20).json()
+            except Exception as e:
+                last_err = e; ok = False; break
+            if isinstance(b, dict) or not b:
+                last_err = str(b)[:200]; ok = False; break
+            rows += b
+            cur = b[-1][0] + 1
+            if len(b) < 1000:
+                break
+            time.sleep(0.2)
+        if ok and rows:
+            print("data host:", host)
+            break
+    else:
+        print("fetch failed:", last_err); sys.exit(1)
+    df = pd.DataFrame(rows, columns=["ot","open","high","low","close","vol",
+                                     "ct","a","b","c","d","e"])
+    for col in ["open","high","low","close","vol"]:
+        df[col] = df[col].astype(float)
+    df["date"] = pd.to_datetime(df["ot"], unit="ms", utc=True)
+    df = df[["date","open","high","low","close","vol"]].drop_duplicates("date").sort_values("date")
+    today = pd.Timestamp.now(tz="UTC").date()
+    return df[df["date"].dt.date < today].reset_index(drop=True)
 
-stats = json.loads((ROOT / "out" / "stats.json").read_text(encoding="utf-8"))
-trades = pd.read_csv(ROOT / "out" / "ledger_trades.csv")
-waits = pd.read_csv(ROOT / "out" / "ledger_waits.csv")
-eq = pd.read_csv(ROOT / "out" / "daily_equity.csv", index_col=0)
+def shift(a, n):
+    out = np.zeros_like(a, dtype=bool)
+    if n >= 0:
+        out[n:] = a[:-n] if n > 0 else a
+    return out
 
-last_date = stats["last_date"]
-last_close = stats["last_close"]
+def main():
+    print("جاري جلب البيانات (2020 ← اليوم)...")
+    df = fetch()
+    print(f"تم جلب {len(df)} شمعة يومية.")
+    c = df["close"].values
+    e20 = pd.Series(c).ewm(span=20, adjust=False).mean().values
+    e50 = pd.Series(c).ewm(span=50, adjust=False).mean().values
+    pos = e20 > e50
+    pos[:WARM] = False
+    act = shift(pos, 1)
+    o = df["open"].values
+    dates = df["date"].values
 
-last = trades.iloc[-1]
-in_mkt = str(last["exit_date"]) == "OPEN"
-if in_mkt:
-    days_state = (pd.Timestamp(last_date) - pd.Timestamp(last["entry_date"])).days
-else:
-    w = waits.iloc[-1]
-    days_state = int(w["days"]) if str(w["end"]) == "NOW" else 0
+    eq, units, in_mkt, entry_px = 100.0, 0.0, False, 0.0
+    trades, waits = [], []
+    eq_curve, w_start, w_beg = [], None, None
+    for i in range(len(df)):
+        if act[i] and not in_mkt:
+            entry_px, in_mkt, t_in = o[i], True, dates[i]
+            units = eq * (1 - COST) / entry_px
+        elif not act[i] and in_mkt:
+            eq = units * o[i] * (1 - COST)
+            trades.append({"entry_date": str(t_in)[:10], "entry_price": round(entry_px, 2),
+                           "exit_date": str(dates[i])[:10], "exit_price": round(o[i], 2),
+                           "days": int((pd.Timestamp(dates[i]) - pd.Timestamp(t_in)).days),
+                           "ret_pct": round((o[i]/entry_px - 1)*100 - 2*COST*100, 2)})
+            units, in_mkt = 0.0, False
+        if not pos[i] and w_start is None:
+            w_start, w_beg = dates[i], c[i]
+        elif pos[i] and w_start is not None:
+            waits.append({"start": str(w_start)[:10], "end": str(dates[i])[:10],
+                          "days": int((pd.Timestamp(dates[i]) - pd.Timestamp(w_start)).days),
+                          "mkt_chg_pct": round((c[i]/w_beg - 1)*100, 2)})
+            w_start = None
+        eq_curve.append(units * c[i] if in_mkt else eq)
 
-signal = {"date": last_date, "state": "LONG" if in_mkt else "FLAT",
-          "price": last_close,
-          "decision_price": stats.get("decision_price"),
-          "current_perf_pct": stats.get("current_perf_pct"),
-          "last_closed_trade": stats.get("last_closed_trade"),
-          "entry_date": str(last["entry_date"]) if in_mkt else None,
-          "entry_price": float(last["entry_price"]) if in_mkt else None,
-          "days_in_state": int(days_state),
-          "generated_at": stats["generated_at"]}
+    if in_mkt:
+        trades.append({"entry_date": str(t_in)[:10], "entry_price": round(entry_px, 2),
+                       "exit_date": "OPEN", "exit_price": round(c[-1], 2),
+                       "days": int((pd.Timestamp(dates[-1]) - pd.Timestamp(t_in)).days),
+                       "ret_pct": round((c[-1]/entry_px - 1)*100 - COST*100, 2)})
+    if w_start is not None:
+        waits.append({"start": str(w_start)[:10], "end": "NOW",
+                      "days": int((pd.Timestamp(dates[-1]) - pd.Timestamp(w_start)).days),
+                      "mkt_chg_pct": round((c[-1]/w_beg - 1)*100, 2)})
 
-chain_f = SITE / "hashes.json"
-chain = json.loads(chain_f.read_text(encoding="utf-8")) if chain_f.exists() else []
-prev = chain[-1]["hash"] if chain else "GENESIS"
-payload = (ROOT / "out" / "ledger_trades.csv").read_bytes() + prev.encode()
-h = hashlib.sha256(payload).hexdigest()
-today = stats["generated_at"][:10]
-if not chain or chain[-1]["date"] != today:
-    chain.append({"date": today, "hash": h, "rows": int(len(trades))})
-chain_f.write_text(json.dumps(chain, indent=1), encoding="utf-8")
+    eqs = pd.Series(eq_curve, index=pd.DatetimeIndex(dates))
+    dd = ((eqs - eqs.cummax()) / eqs.cummax()).min() * 100
+    rets = [t["ret_pct"] for t in trades if t["exit_date"] != "OPEN"]
+    wins = [r for r in rets if r > 0]; losses = [r for r in rets if r <= 0]
+    pf = sum(wins) / abs(sum(losses)) if losses and sum(losses) else 99.0
 
-(SITE / "stats.json").write_text(json.dumps(stats, ensure_ascii=False, indent=1), encoding="utf-8")
-(SITE / "signal.json").write_text(json.dumps(signal, ensure_ascii=False, indent=1), encoding="utf-8")
-(SITE / "ledger_trades.json").write_text(json.dumps(trades.to_dict(orient="records"), ensure_ascii=False), encoding="utf-8")
-(SITE / "ledger_waits.json").write_text(json.dumps(waits.to_dict(orient="records"), ensure_ascii=False), encoding="utf-8")
-(SITE / "equity.json").write_text(json.dumps([[str(i)[:10], round(v, 2)] for i, v in eq["equity"].items()]), encoding="utf-8")
+    yearly = []
+    for yr, g in eqs.groupby(eqs.index.year):
+        yearly.append({"year": int(yr),
+                       "ret_pct": round((g.iloc[-1]/g.iloc[0]-1)*100, 2),
+                       "maxdd_pct": round(((g - g.cummax())/g.cummax()).min()*100, 2)})
 
-print(f"PUBLISHED {today} | state={signal['state']} | chain={len(chain)} | rows={len(trades)}")
-
-# ===== Telegram dawn bulletin — new professional format =====
-import os, urllib.request, urllib.parse, json as _j, datetime as _dt
-_tok = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
-_ch  = os.environ.get("TELEGRAM_CHANNEL", "").strip()
-if "/" in _ch:
-    _ch = _ch.split("/")[-1]
-if _ch and not _ch.startswith("@") and not _ch.lstrip("-").isdigit():
-    _ch = "@" + _ch
-if _tok and _ch:
-    try:
-        _p = os.path.join(os.path.dirname(os.path.abspath(__file__)), "site", "data", "signal.json")
-        sig = _j.load(open(_p, encoding="utf-8"))
-        st      = sig.get("state", "FLAT")
-        price   = sig.get("price", 0)
-        days    = sig.get("days_in_state", 0)
-        entry   = sig.get("entry_date") or "—"
-        dprice  = sig.get("decision_price")
-        cperf   = sig.get("current_perf_pct")
-        lclosed = sig.get("last_closed_trade")
-        gen     = sig.get("generated_at", "")
-        dpart   = gen[:10] or "2020-01-01"
-        tpart   = gen[11:16] or "00:00"
-        d0      = _dt.date.fromisoformat(dpart)
-        issue   = (d0 - _dt.date(2020, 1, 1)).days
-        issue_ar = "".join(chr(0x0660 + int(c)) for c in str(issue))
-        wd = ["الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت", "الأحد"][d0.weekday()]
-        pf_val = stats.get("profit_factor", 3.86)
-        fp = str((chain[-1]["hash"]) if chain else "—")[:8]
-
-        header = (f"🐢 إشارة الفجر | ذهب PAXGUSDT\n"
-                  f"📅 {dpart} | {wd} | {tpart} UTC\n"
-                  f"العدد: {issue_ar}\n\n")
-
-        if st == "LONG":
-            perf_line = f"📈 أداء المركز منذ الدخول ({entry}): {cperf:+.2f}%" if cperf is not None else "📈 المركز حديثٌ جدًا"
-            dec_line = f"🛑 خط القرار: إغلاقٌ يومي أدنى {dprice:.2f}$ ← تنقلب الإشارة 🟡 غدًا"
-            reason = "📝 السبب: EMA20 فوق EMA50 على الإغلاق اليومي"
-            block = (f"🟢 الحالة: LONG — داخل السوق (اليوم {days})\n"
-                     f"📍 سعر المرجع: {price:.2f}$\n"
-                     f"{perf_line}\n"
-                     f"{dec_line}\n"
-                     f"🎯 الهدف: لا هدف ثابت — الربح يجري ما دامت 🟢\n"
-                     f"{reason}\n")
-        else:
-            if lclosed:
-                perf_line = f"📈 آخر صفقة مغلقة: {lclosed['entry_date']} ← {lclosed['exit_date']}: {lclosed['ret_pct']:+.2f}%"
+    hold = 100 * (1 - COST) * c[-1] / c[WARM]
+    dca_u = dca_inv = 0.0
+    nerv_eq, nerv_u, nerv_in, nerv_next = 100.0, 0.0, False, WARM + 7
+    last_m = None
+    for i in range(WARM, len(df)):
+        m = pd.Timestamp(dates[i]).month
+        if m != last_m:
+            add = 100.0 / ((len(df) - WARM) / 30.4)
+            dca_u += add * (1 - COST) / o[i]
+            dca_inv += add
+            last_m = m
+        if i >= nerv_next:
+            if not nerv_in:
+                nerv_u = nerv_eq * (1 - COST) / o[i]; nerv_in = True
             else:
-                perf_line = "📈 لا صفقات مغلقة بعد"
-            dec_line = f"🛎️ خط العودة: إغلاقٌ يومي أعلى {dprice:.2f}$ ← تنقلب الإشارة 🟢 غدًا"
-            reason = "📝 السبب: EMA20 تحت EMA50 على الإغلاق اليومي"
-            block = (f"🟡 الحالة: FLAT — خارج السوق، الدرع مرفوع (اليوم {days})\n"
-                     f"📍 سعر المرجع: {price:.2f}$\n"
-                     f"{perf_line}\n"
-                     f"{dec_line}\n"
-                     f"{reason}\n")
+                nerv_eq = nerv_u * o[i] * (1 - COST)
+                nerv_u, nerv_in = 0.0, False
+            nerv_next = i + 7
+    dca_final = dca_u * c[-1] / dca_inv * 100 if dca_inv else 100
+    nerv_final = nerv_u * c[-1] if nerv_in else nerv_eq
 
-        footer = (f"\n⚙️ قاعدة المنهج: دخولٌ كامل على 🟢، خروجٌ كامل على 🟡 — بلا رافعة ولا أوامر جزئية\n"
-                  f"📊 معامل الربح منذ 2020: {pf_val} — إصاباتٌ قليلة بأرباحٍ كبيرة\n"
-                  f"🔒 البصمة: {fp}\n"
-                  f"\n📒 الدفتر كاملًا: https://homvv99-ai.github.io/slow-gold/site/\n"
-                  f"\n⚖️ التداول ينطوي على مخاطر مالية — ليست نصيحة استثمارية\n"
-                  f"🐢 دفترٌ علنيّ موقع — الصبر قرارٌ موثق")
+    # ===== new: decision line + current performance =====
+    alpha20 = 2.0 / 21.0
+    alpha50 = 2.0 / 51.0
+    decision_price = round(((1 - alpha50) * e50[-1] - (1 - alpha20) * e20[-1]) / (alpha20 - alpha50), 2)
+    current_perf = None
+    if in_mkt and entry_px > 0:
+        current_perf = round((c[-1] / entry_px - 1) * 100 - 2 * COST * 100, 2)
+    closed = [t for t in trades if t["exit_date"] != "OPEN"]
+    last_closed_trade = closed[-1] if closed else None
 
-        txt = header + block + footer
-        _url = f"https://api.telegram.org/bot{_tok}/sendMessage"
-        _data = urllib.parse.urlencode({"chat_id": _ch, "text": txt}).encode()
-        urllib.request.urlopen(urllib.request.Request(_url, data=_data), timeout=30).read()
-        print("Telegram: dawn bulletin delivered to", _ch, "| issue", issue)
-    except Exception as e:
-        _b = ""
-        try: _b = e.read().decode()
-        except Exception: _b = str(e)
-        print("Telegram send failed:", _b)
-else:
-    print("Telegram: secrets missing, skip")
+    stats = {"generated_at": str(pd.Timestamp.now(tz="UTC"))[:19],
+             "period": [START, str(dates[-1])[:10]],
+             "last_date": str(dates[-1])[:10],
+             "last_close": round(float(c[-1]), 2),
+             "decision_price": float(decision_price),
+             "current_perf_pct": current_perf,
+             "last_closed_trade": last_closed_trade,
+             "days_total": int(len(df)), "no_pct": round((~pos).mean()*100, 1),
+             "final_eq": round(eqs.iloc[-1], 2),
+             "total_ret_pct": round(eqs.iloc[-1]-100, 2),
+             "max_dd_pct": round(dd, 2), "trades_n": len(trades),
+             "win_pct": round(len(wins)/len(rets)*100, 1) if rets else 0,
+             "profit_factor": round(pf, 2),
+             "avg_hold_days": int(pd.Series([t["days"] for t in trades]).mean()) if trades else 0,
+             "yearly": yearly,
+             "ghosts": {"buy_hold": round(hold, 2), "dca": round(dca_final, 2),
+                        "nervous": round(nerv_final, 2)},
+             "waits_n": len(waits),
+             "waits_saved_top": sorted([w for w in waits if w["mkt_chg_pct"]<0],
+                                       key=lambda w: w["mkt_chg_pct"])[:5]}
+
+    pd.DataFrame(trades).to_csv(OUT/"ledger_trades.csv", index=False)
+    pd.DataFrame(waits).to_csv(OUT/"ledger_waits.csv", index=False)
+    eqs.to_csv(OUT/"daily_equity.csv", header=["equity"])
+    (OUT/"stats.json").write_text(json.dumps(stats, ensure_ascii=False, indent=1), encoding="utf-8")
+    print("="*58)
+    print(f"الرصيد النهائي: {stats['final_eq']}  ({stats['total_ret_pct']:+.1f}%)")
+    print(f"أكبر تراجع: {stats['max_dd_pct']}% | صفقات: {stats['trades_n']} | فوز: {stats['win_pct']}%")
+    print(f"خط القرار: {decision_price}$")
+    print("="*58)
+
+main()
