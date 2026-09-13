@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Slow Gold — A Public Signed Ledger</title>
+<style>
+body{background:#140f0a;color:#e8d9b0;font-family:Georgia,serif;margin:0;padding:24px;line-height:1.6}
+.wrap{max-width:860px;margin:auto}
+h1{color:#f0c75e}
+.card{background:#1d1710;border:1px solid #3a2f1d;border-radius:12px;padding:16px;margin:14px 0}
+.big{font-size:1.3em;color:#f0c75e}
+a{color:#f0c75e}
+.dim{opacity:.75;font-size:.9em}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>🐢 Slow Gold — A Public Signed Ledger</h1>
+<div class="dim">Gold (PAXGUSDT) · daily EMA20/50 trend method · published every dawn at 00:05 UTC · every line signed with a SHA-256 chain since 2020</div>
+
+<div class="card">
+<b>What is this?</b><br>
+A trading journal that cannot lie. One rule-set since 2020: when the daily close puts EMA20 above EMA50 we are <b>LONG</b>; when it breaks below we are <b>FLAT</b> (cash). No leverage, no intraday decisions, no promises. Losses are published first, in red, forever.
+</div>
+
+<div class="card">
+<b>Live signal</b> <span class="dim">(from the last closed daily candle)</span><br>
+<span id="sig" class="big">loading…</span>
+</div>
+
+<div class="card">
+<b>Audited history 2020 → today</b><br>
+<span id="stats" class="big">loading…</span>
+</div>
+
+<div class="card">
+<b>The rules (never changed in secret)</b><br>
+1) Enter fully on 🟢, exit fully on 🟡 — decisions only on the daily close.<br>
+2) No leverage, ever. No partial orders. No targets we cannot defend.<br>
+3) Any method change is announced publicly before it happens (see the v2 verdict in our PLAYBOOK).<br>
+4) Every number here is computed in public CI logs — nothing is typed by hand.
+</div>
+
+<div class="card">
+<b>Doors</b><br>
+<a href="index.html">📒 Arabic ledger (live charts)</a> ·
+<a href="https://t.me/slowgold_daily" target="_blank">📢 Telegram</a> ·
+<a href="https://x.com/SlowGoldDaily" target="_blank">𝕏 X</a>
+</div>
+
+<div class="dim">⚖️ Trading involves risk. Nothing here is investment advice. We promise honesty, not profit.</div>
+</div>
+<script>
+fetch('data/signal.json').then(r=>r.json()).then(s=>{
+  const st = s.state==='LONG' ? '🟢 LONG — in the market' : '🟡 FLAT — in cash, shield up';
+  document.getElementById('sig').textContent = st + ' · day ' + s.days_in_state + ' · ref price ' + s.price + '$';
+});
+fetch('data/stats.json').then(r=>r.json()).then(t=>{
+  document.getElementById('stats').textContent =
+    'Equity ' + t.final_eq + ' (' + (t.total_ret_pct>0?'+':'') + t.total_ret_pct + '%) · max drawdown ' + t.max_dd_pct + '% · ' + t.trades_n + ' trades · profit factor ' + t.profit_factor + ' · said NO ' + t.no_pct + '% of days';
+});
+</script>
+</body>
+</html>
