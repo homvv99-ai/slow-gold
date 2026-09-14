@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://homvv99-ai.github.io/slow-gold/site/sitemap.xml
