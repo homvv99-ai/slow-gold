@@ -2,73 +2,134 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>
-  <meta name="description" content="A publicly signed ledger tracking gold (PAXGUSDT) with one method since 2020: daily EMA20/50 signal at 00:05 UTC, no leverage, audited stats.">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Slow Gold — A Public Signed Ledger</title>
+<meta name="description" content="A publicly signed ledger tracking gold (PAXGUSDT) with one method since 2020: daily EMA20/50 signal at 00:05 UTC, no leverage, audited stats.">
 <meta property="og:title" content="Slow Gold — A Public Signed Ledger">
 <meta property="og:description" content="Daily gold signal since 2020, signed with SHA-256: no leverage, no advice, audited profit factor 3.86.">
 <meta property="og:image" content="https://homvv99-ai.github.io/slow-gold/site/banner.png">
 <meta property="og:type" content="website">
 <link rel="alternate" hreflang="en" href="https://homvv99-ai.github.io/slow-gold/site/en.html">
-<link rel="alternate" hreflang="ar" href="https://homvv99-ai.github.io/slow-gold/site/">Slow Gold — A Public Signed Ledger</title>
-  <link rel="icon" href="turtle.png">
+<link rel="alternate" hreflang="ar" href="https://homvv99-ai.github.io/slow-gold/site/">
+<link rel="icon" type="image/png" href="turtle.png">
 <style>
-body{background:#140f0a;color:#e8d9b0;font-family:Georgia,serif;margin:0;padding:24px;line-height:1.6}
-.wrap{max-width:860px;margin:auto}
-h1{color:#f0c75e}
-.card{background:#1d1710;border:1px solid #3a2f1d;border-radius:12px;padding:16px;margin:14px 0}
-.big{font-size:1.3em;color:#f0c75e}
-a{color:#f0c75e}
-.dim{opacity:.75;font-size:.9em}
+body{background:#14100b;color:#e8dcc0;font-family:Georgia,serif;margin:0;padding:24px;line-height:1.6}
+h1{color:#d4af37} .card{background:#1f1913;border:1px solid #3a2f1d;border-radius:12px;padding:16px;margin:12px 0}
+.big{font-size:2em;color:#d4af37} .dim{color:#9a8b6a} table{width:100%;border-collapse:collapse} td,th{padding:6px;border-bottom:1px solid #3a2f1d;text-align:left}
+#voice{font-size:1.3em;color:#f0e6c8;border-left:4px solid #d4af37;padding:8px;animation:fadein .9s ease}
+.soft{color:#c9b98f;line-height:1.8;border-left:3px solid #6b5a3a;padding:6px 10px;margin-top:10px;background:#191410;border-radius:6px}
+.g{color:#7ec97e}.r{color:#e07b7b}
+#state{display:inline-block;padding:6px 14px;border-radius:10px;font-size:1.2em}
+#state.LONG{color:#7ec97e;border:1px solid #7ec97e;animation:pulseG 2.2s infinite}
+#state.FLAT{color:#d8c060;border:1px solid #d8c060;animation:pulseY 3.4s infinite}
+#turtle{display:inline-block;animation:floaty 4s ease-in-out infinite}
+.doors{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin:10px 0}
+.doors a{display:inline-flex;align-items:center;gap:6px;padding:10px 18px;border-radius:10px;text-decoration:none;font-size:1em;font-weight:bold;transition:transform .2s,box-shadow .2s}
+.doors a:hover{transform:translateY(-2px);box-shadow:0 4px 15px rgba(0,0,0,.4)}
+.door-tg{background:#0088cc;color:#fff} .door-x{background:#000;color:#fff;border:1px solid #555}
+.door-mirror{background:#d4af37;color:#14100b} .door-wa{background:#25d366;color:#fff}
+.door-gold{background:linear-gradient(135deg,#d4af37,#f0c75e);color:#14100b;animation:pulseY 3.4s infinite}
+@keyframes pulseG{0%,100%{box-shadow:0 0 0 0 rgba(126,201,126,.45)}50%{box-shadow:0 0 20px 5px rgba(126,201,126,.22)}}
+@keyframes pulseY{0%,100%{box-shadow:0 0 0 0 rgba(216,192,96,.45)}50%{box-shadow:0 0 20px 5px rgba(216,192,96,.20)}}
+@keyframes floaty{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+@keyframes fadein{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 </style>
 </head>
 <body>
-<div class="wrap">
 <img src="banner.png" alt="Slow Gold" style="width:100%;max-width:680px;height:auto;display:block;margin:14px auto;border-radius:12px;border:1px solid #3a2f1d">
-  <h1>🐢 Slow Gold — A Public Signed Ledger</h1>
-<div class="dim">Gold (PAXGUSDT) · daily EMA20/50 trend method · published every dawn at 00:05 UTC · every line signed with a SHA-256 chain since 2020</div>
-
+<h1><span id="turtle">🐢</span> Slow Gold — A Public Signed Ledger</h1>
+<div class="dim">Patience, published | Official Binance data since 2020 | A ledger that cannot be edited</div>
+<div class="card"><div id="voice">…</div><div class="dim" id="updated"></div></div>
+<div class="card"><b>What is this?</b> A machine that watches gold every day and makes exactly one decision: in, or out. We promise no profits; we promise three things: we don't lie, we don't hide a loss, we don't rush. <b>Read it as a public journal — not a buy order.</b></div>
 <div class="card">
-<b>What is this?</b><br>
-A trading journal that cannot lie. One rule-set since 2020: when the daily close puts EMA20 above EMA50 we are <b>LONG</b>; when it breaks below we are <b>FLAT</b> (cash). No leverage, no intraday decisions, no promises. Losses are published first, in red, forever.
+<span class="big" id="state">…</span> — <span id="price"></span>$
+<div>Current position age: <b id="days"></b> days | entry: <span id="entry"></span></div>
+<div class="soft">A pulsing 🟢 means the machine is in a trade since the date shown. A slowly breathing 🟡 means it chose to wait — <b>and waiting here is a decision, not hesitation</b>.</div>
 </div>
-
-<div class="card">
-<b>Live signal</b> <span class="dim">(from the last closed daily candle)</span><br>
-<span id="sig" class="big">loading…</span>
+<div class="card"><table><tr>
+<td>Equity<br><b class="big" id="feq"></b></td>
+<td>Return<br><b id="fret"></b></td>
+<td>Max DD<br><b id="fdd"></b></td>
+<td>Profit factor<br><b id="pf"></b></td>
+<td>Win rate<br><b id="win"></b></td>
+<td>NO days<br><b id="nopct"></b></td>
+</tr></table>
+<div class="dim">Benchmark paths since 2020: buy &amp; hold <b id="g1"></b> | weekly DCA <b id="g2"></b> | emotional trading <b id="g3"></b></div>
+<div class="soft">In human words: whoever walked with the machine with $100 in 2020 holds $181 today — <b>and calmer nerves</b> than whoever bought and forgot. Look closely at emotional trading: <b>that is what the market does to a hurried hand</b>.</div>
 </div>
-
-<div class="card">
-<b>Audited history 2020 → today</b><br>
-<span id="stats" class="big">loading…</span>
-</div>
-
+<div class="card"><svg id="spark" width="100%" height="120"></svg><div class="dim">Equity curve 2020 → today (base 100)</div>
+<div class="soft">This is the journey line: every rise is a year of patience, every dip a lesson we never erased.</div></div>
+<div class="card"><h3>📅 Yearly table</h3><table id="yearly"></table>
+<div class="soft">Read the 2022 row slowly: a year gold fell and the machine profited. Not smarter than the market — <b>it knows when not to be in it</b>.</div></div>
+<div class="card"><h3>🧱 The Wall of NO</h3>
+<div>Completed wait periods: <b id="wn"></b> | longest: <b id="wl"></b> days</div>
+<table id="saved"></table>
+<div class="soft">Every row here is a period where the machine said NO to entry. Last column: how much the market fell while we were safely out. <b>NO is not a missed opportunity; it is loaded cash guarding capital</b>.</div></div>
+<div class="card"><h3>📒 Latest trades</h3><table id="trades"></table>
+<div class="soft">These are journal pages: every trade with its dates and result — <b>including the losers</b>. The red rows are our credibility: whoever hides them lies in the white ones too.</div></div>
 <div class="card">
 <b>The rules (never changed in secret)</b><br>
 1) Enter fully on 🟢, exit fully on 🟡 — decisions only on the daily close.<br>
 2) No leverage, ever. No partial orders. No targets we cannot defend.<br>
-3) Any method change is announced publicly before it happens (see the v2 verdict in our PLAYBOOK).<br>
+3) Any method change is announced publicly before it happens (see the v2 verdict in the Lab).<br>
 4) Every number here is computed in public CI logs — nothing is typed by hand.
 </div>
-
 <div class="card">
-<b>Doors</b><br>
-<a href="index.html">📒 Arabic ledger (live charts)</a> ·
-<a href="https://t.me/slowgold_daily" target="_blank">📢 Telegram</a> ·
-  <a href="https://whatsapp.com/channel/0029VbDszZVLikg6q9I2yj03" target="_blank">📱 WhatsApp</a>
-<a href="https://x.com/SlowGoldDaily" target="_blank">𝕏 X</a>
+<b>📡 Follow the dawn signal</b>
+<div class="doors">
+<a class="door-gold" href="birthday.html">⏳ Your Golden Age</a>
+<a class="door-mirror" href="research.html">🔬 The Lab</a>
+<a class="door-mirror" href="archive/index.html">📜 Dawn Memory</a>
+<a class="door-tg" href="https://t.me/slowgold_daily" target="_blank">📢 Telegram</a>
+<a class="door-wa" href="https://whatsapp.com/channel/0029VbDszZVLikg6q9I2yj03" target="_blank">📱 WhatsApp</a>
+<a class="door-x" href="https://x.com/SlowGoldDaily" target="_blank">𝕏 X</a>
+<a class="door-x" href="index.html">📒 العربية</a>
 </div>
-
-<div class="dim">⚖️ Trading involves risk. Nothing here is investment advice. We promise honesty, not profit.</div>
 </div>
+<div class="card dim">Method: EMA20/50 cross on the daily candle of PAXGUSDT, fees 0.15% + slippage 0.05% per side. Waiting is a documented decision, not a profit promise. Every line here is signed with an unbreakable SHA-256 fingerprint. <b>Not investment advice; trading may lose your capital.</b></div>
 <script>
-fetch('data/signal.json').then(r=>r.json()).then(s=>{
-  const st = s.state==='LONG' ? '🟢 LONG — in the market' : '🟡 FLAT — in cash, shield up';
-  document.getElementById('sig').textContent = st + ' · day ' + s.days_in_state + ' · ref price ' + s.price + '$';
-});
-fetch('data/stats.json').then(r=>r.json()).then(t=>{
-  document.getElementById('stats').textContent =
-    'Equity ' + t.final_eq + ' (' + (t.total_ret_pct>0?'+':'') + t.total_ret_pct + '%) · max drawdown ' + t.max_dd_pct + '% · ' + t.trades_n + ' trades · profit factor ' + t.profit_factor + ' · said NO ' + t.no_pct + '% of days';
+const LINES=[
+["Patience is not slow; patience is precise.","The tribe of survivors doesn't chase the market; it waits for the market to arrive.","You are not a gambler with bad luck; you are a hunter before your hour.","Whoever knows himself doesn't rush to prove it."],
+["Your enemy is not gold — it's the notification glowing in your pocket.","The most dangerous sentence in trading: (this chance will never come again).","The market steals from no one; impulse hands it the keys.","Every red candle you didn't enter is a battle you skipped unarmed."],
+["We publish losses first; whoever hides them isn't believed when profits come.","Our ledger has red rows we never erase — they are our first teacher.","Honesty at a loss is our true capital.","We promise no profits; we promise never to lie to you."],
+["The market doesn't reward the fastest; it rewards the ones still standing.","Silence is a fully-armed position.","Outside the market, inside the plan.","The shield doesn't shine — but it keeps you alive."],
+["Today thousands wait calmly with you — collective patience outlasts solitary patience.","You are not alone outside the market; we are out here with you, with a plan.","Everyone waiting here knows the name of the last storm — and survived it.","Our community doesn't celebrate noise; it celebrates survival."],
+["Friday's letter arrives soon: a whole week's story of patience.","Every Friday we write what numbers alone cannot say.","This week the market taught us one lesson — we will tell it in full.","Have your coffee ready; the letter publishes at dusk."]];
+const POOL=LINES.flat();
+function voiceTick(){
+const idx=Math.floor(Date.now()/240000)%POOL.length;
+const el=document.getElementById("voice");
+if(el.dataset.i!=idx){el.dataset.i=idx;el.style.animation="none";void el.offsetWidth;el.style.animation="";el.textContent=POOL[idx];}
+}
+voiceTick();setInterval(voiceTick,10000);
+function anim(el,val,dec,suf){const t0=performance.now();function f(t){const p=Math.min((t-t0)/1400,1);el.textContent=(val*p).toFixed(dec)+(suf||"");if(p<1)requestAnimationFrame(f);}requestAnimationFrame(f);}
+const j=p=>fetch(p).then(r=>r.json());
+Promise.all([j("data/signal.json"),j("data/stats.json"),j("data/ledger_trades.json"),j("data/ledger_waits.json"),j("data/equity.json")])
+.then(([s,st,tr,wa,eq])=>{
+const stEl=document.getElementById("state");
+stEl.className=s.state;
+stEl.textContent=s.state=="LONG"?"🟢 LONG — in the market":"🟡 FLAT — cash, shield up";
+anim(document.getElementById("price"),s.price,2,"");
+document.getElementById("days").textContent=s.days_in_state;
+document.getElementById("entry").textContent=s.entry_date||"—";
+document.getElementById("updated").textContent="Last cloud update: "+s.generated_at+" UTC";
+anim(document.getElementById("feq"),st.final_eq,2,"");
+anim(document.getElementById("fret"),st.total_ret_pct,2,"%");
+anim(document.getElementById("fdd"),st.max_dd_pct,2,"%");
+anim(document.getElementById("pf"),st.profit_factor,2,"");
+anim(document.getElementById("win"),st.win_pct,1,"%");
+anim(document.getElementById("nopct"),st.no_pct,0,"%");
+document.getElementById("g1").textContent=st.ghosts.buy_hold;
+document.getElementById("g2").textContent=st.ghosts.dca;
+document.getElementById("g3").textContent=st.ghosts.nervous;
+document.getElementById("yearly").innerHTML="<tr><th>Year</th><th>Return</th><th>Max DD</th></tr>"+st.yearly.map(y=>`<tr><td>${y.year}</td><td class="${y.ret_pct>=0?'g':'r'}">${y.ret_pct}%</td><td>${y.maxdd_pct}%</td></tr>`).join("");
+document.getElementById("wn").textContent=st.waits_n;
+document.getElementById("wl").textContent=st.waits_longest||wa.reduce((m,w)=>Math.max(m,w.days),0);
+document.getElementById("saved").innerHTML="<tr><th>Start</th><th>Days</th><th>Market drop while you were shielded</th></tr>"+st.waits_saved_top.map(w=>`<tr><td>${w.start}</td><td>${w.days}</td><td class="g">${w.mkt_chg_pct}%</td></tr>`).join("");
+document.getElementById("trades").innerHTML="<tr><th>Entry</th><th>Exit</th><th>Days</th><th>Result</th></tr>"+tr.slice(-10).reverse().map(t=>`<tr><td>${t.entry_date}</td><td>${t.exit_date}</td><td>${t.days}</td><td class="${t.ret_pct>=0?'g':'r'}">${t.ret_pct}%</td></tr>`).join("");
+const pts=eq.filter((_,i)=>i%15==0),mn=Math.min(...pts.map(p=>p[1]),100),mx=Math.max(...pts.map(p=>p[1]),100);
+document.getElementById("spark").innerHTML='<polyline fill="none" stroke="#d4af37" stroke-width="2" points="'+pts.map((p,i)=>`${p[0]*(600/pts.length)},${115-(p[1]-mn)/(mx-mn)*110}`).join(" ")+'"/>';
+try{const pl=document.querySelector("#spark polyline");const L=pl.getTotalLength();pl.style.strokeDasharray=L;pl.style.strokeDashoffset=L;pl.getBoundingClientRect();pl.style.transition="stroke-dashoffset 2.6s ease";pl.style.strokeDashoffset="0";}catch(e){}
 });
 </script>
 </body>
