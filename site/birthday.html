@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>لو دخلت يوم ميلادك؟ | Slow Gold</title>
 <meta name="description" content="حاسبة علنية: اختر أي تاريخ منذ 2020 وسترى ماذا فعل منهج الذهب الصبور منذ ذلك اليوم حتى اليوم — أرقامٌ مدققة من الدفتر الموقّع.">
+<meta property="og:title" content="لو دخلت يوم ميلادك؟ | الذهب الصبور">
+<meta property="og:image" content="https://homvv99-ai.github.io/slow-gold/site/banner.png">
 <link rel="icon" href="turtle.png">
 <style>body{background:#14100b;color:#e8dcc0;font-family:Tahoma,Segoe UI,sans-serif;margin:0;padding:24px;line-height:1.8}
 .wrap{max-width:760px;margin:auto}
@@ -14,19 +16,26 @@ h1{color:#d4af37}
 .dim{color:#9a8b6a}
 .g{color:#7ec97e}.r{color:#e07b7b}
 input{background:#191410;color:#e8dcc0;border:1px solid #6b5a3a;border-radius:8px;padding:10px;font-size:1.1em}
-button{background:#d4af37;color:#14100b;border:0;border-radius:8px;padding:10px 18px;font-weight:bold;font-size:1.05em;cursor:pointer}
+button{background:#d4af37;color:#14100b;border:0;border-radius:8px;padding:10px 16px;font-weight:bold;font-size:1em;cursor:pointer;margin:3px}
+button.ghost{background:#191410;color:#d4af37;border:1px solid #6b5a3a}
 a{color:#d4af37}
 </style>
 </head>
 <body>
 <div class="wrap">
 <h1>🎂 لو دخلتَ يوم ميلادك؟</h1>
-<div class="dim">اختر أي تاريخ منذ أغسطس 2020 — وسترى ماذا فعل المنهج بك منذ ذلك اليوم حتى هذه اللحظة. أرقامٌ من الدفتر الموقّع، لا وعود.</div>
+<div class="dim">اختر لحظة بداية — وسترى ماذا فعل المنهج بك منذ ذلك اليوم حتى هذه اللحظة. أرقامٌ من الدفتر الموقّع، لا وعود.</div>
 <div class="card">
-<input type="date" id="d" min="2020-08-28">
-<button onclick="calc()">احسب رحلتي 🐢</button>
+<button onclick="preset('first')">منذ ميلاد الدفتر</button>
+<button onclick="preset('2022-01-01')">منذ انهيار 2022</button>
+<button onclick="preset('year')">منذ بداية العام</button>
+<button onclick="preset('365')">منذ سنةٍ كاملة</button>
+<br>
+<input type="date" id="d"> <button class="ghost" onclick="calc()">احسب رحلتي 🐢</button>
+<div id="msg" class="dim" style="margin-top:8px"></div>
 </div>
 <div class="card" id="out" style="display:none">
+<div id="note" class="dim"></div>
 <div id="ttl" class="dim"></div>
 <div class="big" id="eq"></div>
 <div id="rows"></div>
@@ -37,42 +46,55 @@ a{color:#d4af37}
 </div>
 <script>
 const j=p=>fetch(p).then(r=>r.json());
-let EQ=null,TR=null;
+let EQ=null,TR=null,FIRST="",LAST="",PREV="";
+const iso=d=>d.toISOString().slice(0,10);
 Promise.all([j("data/equity.json"),j("data/ledger_trades.json")]).then(([e,t])=>{
-  EQ=e; TR=t;
-  document.getElementById("d").min=EQ[0][0];
-  document.getElementById("d").max=EQ[EQ.length-1][0];
+  EQ=e;TR=t;FIRST=EQ[0][0];LAST=EQ[EQ.length-1][0];PREV=EQ[EQ.length-2][0];
+  const inp=document.getElementById("d");
+  inp.min=FIRST;inp.max=PREV;
   const q=new URLSearchParams(location.search).get("d");
-  if(q){document.getElementById("d").value=q;calc();}
+  if(q){inp.value=q;calc();}
 });
+function preset(k){
+  if(!EQ)return;
+  let v="";
+  if(k==="first")v=FIRST;
+  else if(k==="year")v=iso(new Date(Date.UTC(new Date().getUTCFullYear(),0,1)));
+  else if(k==="365")v=iso(new Date(Date.now()-365*86400000));
+  else v=k;
+  if(v<FIRST)v=FIRST;
+  if(v>PREV)v=PREV;
+  document.getElementById("d").value=v;
+  calc();
+}
 function calc(){
-  const v=document.getElementById("d").value;
-  if(!v||!EQ)return;
-  let si=-1;
+  const m=document.getElementById("msg");m.textContent="";
+  if(!EQ){m.textContent="لحظة… الدفتر يُفتح";return;}
+  let v=document.getElementById("d").value;
+  if(!v){m.textContent="اختر تاريخًا أو اضغط أحد الأزرار الجاهزة";return;}
+  let note="";
+  if(v<FIRST){note="دفترنا يبدأ "+FIRST+" — حسبنا رحلتك من هناك، بصدق.";v=FIRST;}
+  if(v>PREV){m.textContent="آخر يومٍ قابل للحساب هو "+PREV+" — اختر ما قبله بيومٍ على الأقل";return;}
+  let si=0;
   for(let i=0;i<EQ.length;i++){if(EQ[i][0]>=v){si=i;break;}}
-  if(si<0||si>=EQ.length-1){alert("اختر تاريخًا بين "+EQ[0][0]+" و "+EQ[EQ.length-1][0]);return;}
-  const v0=EQ[si][1], v1=EQ[EQ.length-1][1];
+  const v0=EQ[si][1],v1=EQ[EQ.length-1][1];
   const growth=(v1/v0-1)*100;
-  let peak=v0, mdd=0;
-  for(let i=si;i<EQ.length;i++){
-    const x=EQ[i][1];
-    if(x>peak)peak=x;
-    const dd=(x/peak-1)*100;
-    if(dd<mdd)mdd=dd;
-  }
-  const trs=TR.filter(t=>t.entry_date>=v);
+  let peak=v0,mdd=0;
+  for(let i=si;i<EQ.length;i++){const x=EQ[i][1];if(x>peak)peak=x;const dd=(x/peak-1)*100;if(dd<mdd)mdd=dd;}
+  const eff=EQ[si][0];
+  const trs=TR.filter(t=>t.entry_date>=eff);
   const wins=trs.filter(t=>t.ret_pct>=0).length;
-  const d0=new Date(EQ[si][0]), d1=new Date(EQ[EQ.length-1][0]);
-  const days=Math.round((d1-d0)/86400000);
+  const days=Math.round((new Date(LAST)-new Date(eff))/86400000);
   document.getElementById("out").style.display="";
-  document.getElementById("ttl").textContent="لو مشيتَ مع المنهج منذ "+EQ[si][0]+" حتى "+EQ[EQ.length-1][0]+" ("+days+" يومًا):";
+  document.getElementById("note").textContent=note;
+  document.getElementById("ttl").textContent="لو مشيتَ مع المنهج منذ "+eff+" حتى "+LAST+" ("+days+" يومًا):";
   document.getElementById("eq").textContent="كل 100$ صارت "+(100*v1/v0).toFixed(2)+"$";
   document.getElementById("rows").innerHTML=
-    "العائد الكلي: <b class='"+(growth>=0?"g":"r")+"'>"+growth.toFixed(2)+"%</b><br>"+
-    "أقصى تراجع في الرحلة: <b class='r'>"+mdd.toFixed(2)+"%</b><br>"+
-    "صفقات خضتها مع المنهج: <b>"+trs.length+"</b>"+(trs.length?" — نجح منها <b>"+(100*wins/trs.length).toFixed(1)+"%</b>":"")+"<br>"+
-    "<span class='dim'>ومقابلها أيامٌ كثيرة قال فيها المنهج (لا) فحفظتَ رأس مالك خارج العاصفة.</span>";
-  history.replaceState(null,"","?d="+v);
+  "العائد الكلي: <b class='"+(growth>=0?"g":"r")+"'>"+growth.toFixed(2)+"%</b><br>"+
+  "أقصى تراجع في الرحلة: <b class='r'>"+mdd.toFixed(2)+"%</b><br>"+
+  "صفقات خضتها مع المنهج: <b>"+trs.length+"</b>"+(trs.length?" — نجح منها <b>"+(100*wins/trs.length).toFixed(1)+"%</b>":"")+"<br>"+
+  "<span class='dim'>ومقابلها أيامٌ كثيرة قال فيها المنهج (لا) فحفظتَ رأس مالك خارج العاصفة.</span>";
+  history.replaceState(null,"","?d="+eff);
 }
 </script>
 </body>
