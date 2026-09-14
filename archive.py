@@ -58,7 +58,8 @@ idx = f"""<!DOCTYPE html>
 </html>"""
 open(f"{SITE}/archive/index.html","w",encoding="utf-8").write(idx)
 
-static = [("", "daily", "1.0"), ("en.html", "weekly", "0.9"), ("research.html", "monthly", "0.8"), ("mirror.html", "daily", "0.7"), ("archive/index.html", "daily", "0.7")]
+static = [("", "daily", "1.0"), ("en.html", "weekly", "0.9"), ("research.html", "monthly", "0.8"),
+          ("birthday.html", "weekly", "0.8"),("mirror.html", "daily", "0.7"), ("archive/index.html", "daily", "0.7")]
 urls = ""
 for path, freq, prio in static:
     loc = f"https://homvv99-ai.github.io/slow-gold/site/{path}"
