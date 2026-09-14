@@ -60,7 +60,8 @@ idx = f"""<!DOCTYPE html>
 open(f"{SITE}/archive/index.html","w",encoding="utf-8").write(idx)
 
 static = [("", "daily", "1.0"), ("en.html", "weekly", "0.9"), ("research.html", "monthly", "0.8"),
-          ("birthday.html", "weekly", "0.8"), ("mirror.html", "daily", "0.7"), ("archive/index.html", "daily", "0.7")]
+          ("birthday.html", "weekly", "0.8"), ("mirror.html", "daily", "0.7"), ("archive/index.html", "daily", "0.7"),
+          ("api.html", "weekly", "0.7")]
 seen = set()
 urls = ""
 def add(loc, lastmod, freq, prio):
