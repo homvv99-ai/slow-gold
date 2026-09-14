@@ -1,6 +1,7 @@
 import json, glob, os, datetime
 
 SITE="site"
+BASE="https://homvv99-ai.github.io/slow-gold/site/"
 sig=json.load(open(f"{SITE}/data/signal.json",encoding="utf-8"))
 st=json.load(open(f"{SITE}/data/stats.json",encoding="utf-8"))
 day=(sig.get("generated_at") or "")[:10] or datetime.date.today().isoformat()
@@ -17,9 +18,9 @@ page = f"""<!DOCTYPE html>
 <title>نشرة الفجر — {day} | Slow Gold</title>
 <meta name="description" content="أرشيف دائم: نشرة فجر {day} لذهب PAXGUSDT — الحالة والسعر والأرقام المدققة كما نُشرت يومها.">
 <meta property="og:title" content="نشرة الفجر — {day} | الذهب الصبور">
-<meta property="og:image" content="https://homvv99-ai.github.io/slow-gold/site/banner.png">
+<meta property="og:image" content="{BASE}banner.png">
 <link rel="icon" href="../turtle.png">
-<link rel="canonical" href="https://homvv99-ai.github.io/slow-gold/site/archive/{day}.html">
+<link rel="canonical" href="{BASE}archive/{day}.html">
 <style>{CSS}</style>
 </head>
 <body>
@@ -59,14 +60,21 @@ idx = f"""<!DOCTYPE html>
 open(f"{SITE}/archive/index.html","w",encoding="utf-8").write(idx)
 
 static = [("", "daily", "1.0"), ("en.html", "weekly", "0.9"), ("research.html", "monthly", "0.8"),
-          ("birthday.html", "weekly", "0.8"),
-          ("birthday.html", "weekly", "0.8"),("mirror.html", "daily", "0.7"), ("archive/index.html", "daily", "0.7")]
+          ("birthday.html", "weekly", "0.8"), ("mirror.html", "daily", "0.7"), ("archive/index.html", "daily", "0.7")]
+seen = set()
 urls = ""
+def add(loc, lastmod, freq, prio):
+    global urls
+    if loc in seen:
+        return
+    seen.add(loc)
+    lm = f"<lastmod>{lastmod}</lastmod>" if lastmod else ""
+    urls += f"<url><loc>{loc}</loc>{lm}<changefreq>{freq}</changefreq><priority>{prio}</priority></url>\n"
+
 for path, freq, prio in static:
-    loc = f"https://homvv99-ai.github.io/slow-gold/site/{path}"
-    urls += f"<url><loc>{loc}</loc><changefreq>{freq}</changefreq><priority>{prio}</priority></url>\n"
+    add(BASE+path, "", freq, prio)
 for d in days:
-    urls += f"<url><loc>https://homvv99-ai.github.io/slow-gold/site/archive/{d}.html</loc><lastmod>{d}</lastmod><changefreq>yearly</changefreq><priority>0.6</priority></url>\n"
+    add(BASE+f"archive/{d}.html", d, "yearly", "0.6")
 sm = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' + urls + "</urlset>\n"
 open(f"{SITE}/sitemap.xml","w",encoding="utf-8").write(sm)
-print("archive built:", day, "| pages:", len(days))
+print("archive built:", day, "| pages:", len(days), "| urls:", len(seen))
