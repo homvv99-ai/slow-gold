@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>واجهة البيانات العلنية | Slow Gold</title>
+<meta name="description" content="بيانات دفتر الذهب الصبور مفتوحةٌ مجانًا للصحفيين والباحثين: إشارة يومية، إحصاءات مدققة، سجل صفقات كامل — بشرط ذكر المصدر.">
+<link rel="icon" href="turtle.png">
+<style>body{background:#14100b;color:#e8dcc0;font-family:Tahoma,Segoe UI,sans-serif;margin:0;padding:24px;line-height:1.8}
+.wrap{max-width:860px;margin:auto}h1{color:#d4af37}
+.card{background:#1f1913;border:1px solid #3a2f1d;border-radius:12px;padding:16px;margin:12px 0}
+.dim{color:#9a8b6a}a{color:#d4af37}
+table{width:100%;border-collapse:collapse}td,th{padding:8px;border-bottom:1px solid #3a2f1d;text-align:right}
+code{background:#191410;border:1px solid #6b5a3a;border-radius:6px;padding:2px 6px;direction:ltr;display:inline-block}
+pre{background:#191410;border:1px solid #6b5a3a;border-radius:8px;padding:12px;direction:ltr;overflow:auto}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>📡 واجهة البيانات العلنية (API)</h1>
+<div class="dim">صحفيٌ؟ باحثٌ؟ مطوّر؟ بيانات دفترنا مفتوحةٌ مجانًا — بشرطٍ واحد: ذكر المصدر برابطٍ حيّ.</div>
+
+<div class="card"><b>الشروط بثلاث:</b><br>
+1) اذكر المصدر: «دفتر الذهب الصبور العلني» مع رابطٍ حيّ.<br>
+2) البيانات كما هي — بلا ضمانٍ منا على قراراتك بها.<br>
+3) لا تُنسب إلينا تفسيرًا لم نقله.</div>
+
+<div class="card"><h3>📂 النقاط المتاحة (JSON عام، CORS مفتوح):</h3>
+<table>
+<tr><th>المسار</th><th>المحتوى</th><th>التحديث</th></tr>
+<tr><td><code>data/signal.json</code></td><td>الحالة الآن (LONG/FLAT)، السعر المرجعي، تاريخ الدخول، عمر المركز</td><td>يوميًا 00:05 UTC</td></tr>
+<tr><td><code>data/stats.json</code></td><td>المقاييس المدققة: رصيد، عائد، أقصى تراجع، معامل ربح، فوز، أيام (لا)، الجدول السنوي</td><td>يوميًا</td></tr>
+<tr><td><code>data/ledger_trades.json</code></td><td>سجل الصفقات كاملًا منذ 2020 (دخول/خروج/نتيجة)</td><td>عند كل صفقة</td></tr>
+<tr><td><code>data/ledger_waits.json</code></td><td>فترات الانتظار (جدار الـ«لا»)</td><td>عند كل فترة</td></tr>
+<tr><td><code>data/equity.json</code></td><td>منحنى الرصيد اليومي منذ 2020</td><td>يوميًا</td></tr>
+</table>
+<div class="dim">الجذر: <code>https://homvv99-ai.github.io/slow-gold/site/</code></div></div>
+
+<div class="card"><h3>🧪 مثال جلب:</h3>
+<pre>fetch("https://homvv99-ai.github.io/slow-gold/site/data/signal.json")
+  .then(r =&gt; r.json())
+  .then(s =&gt; console.log(s.state, s.price));</pre></div>
+
+<div class="card"><h3>🪪 الشارة الحيّة (لأي موقعٍ أو مدونة):</h3>
+<div class="dim">انسخ السطر وضعه حيث تريد — تظهر شارةٌ ذهبية حيّة تتحدث كل فجر:</div>
+<pre>&lt;script src="https://homvv99-ai.github.io/slow-gold/site/widget.js"&gt;&lt;/script&gt;</pre>
+<div class="dim">وهذا عرضٌ حيّ لها تحت هذا السطر مباشرة:</div>
+<script src="widget.js"></script>
+</div>
+
+<div class="card dim">المنهج: تقاطع EMA20/50 على الشمعة اليومية لـ PAXGUSDT. ليست نصيحة استثمارية؛ التداول مخاطرة.<br>
+<a href="index.html">📒 الدفتر الحي</a> · <a href="research.html">🔬 المختبر</a> · <a href="birthday.html">⏳ عمرك بالذهب</a></div>
+</div>
+</body>
+</html>
