@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>لو دخلت يوم ميلادك؟ | Slow Gold</title>
+<meta name="description" content="حاسبة علنية: اختر أي تاريخ منذ 2020 وسترى ماذا فعل منهج الذهب الصبور منذ ذلك اليوم حتى اليوم — أرقامٌ مدققة من الدفتر الموقّع.">
+<link rel="icon" href="turtle.png">
+<style>body{background:#14100b;color:#e8dcc0;font-family:Tahoma,Segoe UI,sans-serif;margin:0;padding:24px;line-height:1.8}
+.wrap{max-width:760px;margin:auto}
+h1{color:#d4af37}
+.card{background:#1f1913;border:1px solid #3a2f1d;border-radius:12px;padding:16px;margin:12px 0}
+.big{font-size:1.6em;color:#d4af37}
+.dim{color:#9a8b6a}
+.g{color:#7ec97e}.r{color:#e07b7b}
+input{background:#191410;color:#e8dcc0;border:1px solid #6b5a3a;border-radius:8px;padding:10px;font-size:1.1em}
+a{color:#d4af37}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>🎂 لو دخلتَ يوم ميلادك؟</h1>
+<div class="dim">اختر أي تاريخ منذ 2020-01-01 — وسترى ماذا فعل المنهج بك منذ ذلك اليوم حتى هذه اللحظة. أرقامٌ من الدفتر الموقّع، لا وعود.</div>
+<div class="card"><input type="date" id="d" min="2020-01-01" max="2026-12-31"> <button onclick="calc()" style="background:#d4af37;color:#14100b;border:0;border-radius:8px;padding:10px 18px;font-weight:bold;font-size:1.05em">احسب رحلتي</button></div>
+<div class="card" id="out" style="display:none">
+<div id="ttl" class="dim"></div>
+<div class="big" id="eq"></div>
+<div id="rows"></div>
+<div class="dim" style="margin-top:10px">شارك رحلتك: الرابط في شريط العنوان صار يحمل تاريخك — انسخه وأرسله</div>
+</div>
+<div class="card dim">المنهج: تقاطع EMA20/50 على الشمعة اليومية لـ PAXGUSDT، برسومٍ وانزلاقٍ محتسبين. ليست نصيحة استثمارية؛ التداول مخاطرة.<br><a href="index.html">📒 الدفتر الحي</a> · <a href="en.html">🌐 English</a></div>
+</div>
+<script>
+const j=p=>fetch(p).then(r=>r.json());
+let EQ=null,TR=null;
+Promise.all([j("data/equity.json"),j("data/ledger_trades.json")]).then(([e,t])=>{EQ=e;TR=t;
+  const q=new URLSearchParams(location.search).get("d");
+  if(q){document.getElementById("d").value=q;calc();}
+});
+function dateOf(e){return e[0]>1e11?new Date(e[0]):new Date(Date.parse("2020-01-01")+e[0]*86400000);}
+function calc(){
+  const v=document.getElementById("d").value; if(!v||!EQ)return;
+  const chosen=Date.parse(v);
+  let si=-1;
+  for(let i=0;i<EQ.length;i++){if(dateOf(EQ[i]).getTime()>=chosen){si=i;break;}}
+  if(si<0||si>=EQ.length-1){alert("اختر تاريخًا بين 2020-01-01 وقبل اليوم ببضعة أيام");return;}
+  const v0=EQ[si][1], v1=EQ[EQ.length-1][1];
+  const growth=(v1/v0-1)*100;
+  let peak=EQ[si][1], mdd=0;
+  for(let i=si;i<EQ.length;i++){const x=EQ[i][1]; if(x>peak)peak=x; const dd=(x/peak-1)*100; if(dd<mdd)mdd=dd;}
+  const trs=TR.filter(t=>Date.parse(t.entry_date)>=chosen);
+  const wins=trs.filter(t=>t.ret_pct>=0).length;
+  const days=Math.round((dateOf(EQ[EQ.length-1]).getTime()-chosen)/86400000);
+  document.getElementById("out").style.display="";
+  document.getElementById("ttl").textContent="لو مشيتَ مع المنهج منذ "+v+" حتى اليوم ("+days+" يومًا):";
+  document.getElementById("eq").textContent="كل 100$ صارت "+(100*v1/v0).toFixed(2)+"$";
+  document.getElementById("rows").innerHTML=
+   "العائد الكلي: <b class='"+(growth>=0?"g":"r")+"'>"+growth.toFixed(2)+"%</b><br>"+
+   "أقصى تراجع في الرحلة: <b class='r'>"+mdd.toFixed(2)+"%</b><br>"+
+   "صفقات خضتها مع المنهج: <b>"+trs.length+"</b> — نجح منها <b>"+(trs.length?(100*wins/trs.length).toFixed(1):0)+"%</b><br>"+
+   "<span class='dim'>ومقابلها أيامٌ كثيرة قال فيها المنهج (لا) فحفظتَ رأس مالك خارج العاصفة.</span>";
+  history.replaceState(null,"","?d="+v);
+}
+</script>
+</body>
+</html>
