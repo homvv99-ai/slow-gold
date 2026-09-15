@@ -201,6 +201,7 @@ def run_cell(cs1, cs5, m, variant, dur, payout):
     day = None
     day_n = 0
     cons = 0
+    skipped = 0
     m1c = [c["epoch"] + 60 for c in cs1]
     for i in range(60, len(cs5) - 1):
         t = cs5[i]["epoch"] + 300
@@ -218,6 +219,9 @@ def run_cell(cs1, cs5, m, variant, dur, payout):
         j = bisect.bisect_left(m1c, ep)
         if j >= len(cs1):
             break
+        if ep < m1c[0]:
+            skipped += 1
+            continue
         exit_px = cs1[j]["close"]
         entry_px = cs5[i]["close"]
         win = (exit_px > entry_px) if s == 1 else (exit_px < entry_px)
@@ -252,7 +256,8 @@ def run_cell(cs1, cs5, m, variant, dur, payout):
     return {"variant": variant, "expiry": dur, "n": n, "wins": wins,
             "win_pct": round(win_pct, 2), "ev_pct": round(ev_pct, 2),
             "pf": round(pf, 2), "max_dd_pct": round(maxdd, 2),
-            "margin_pts": round(margin, 2), "verdict": verdict, "curve": curve}
+            "margin_pts": round(margin, 2), "verdict": verdict,
+            "skipped": skipped, "curve": curve}
 
 def probe():
     w = connect()
@@ -272,9 +277,12 @@ def backtest():
     for sym in CFG["symbols"]:
         log("fetch", sym)
         cs1 = candles(w, sym, 60, days * 1440)
+        if not cs1:
+            raise SystemExit(STAMP + " NO M1 DATA " + sym)
         cs5 = candles(w, sym, 300, days * 288)
         cs15 = candles(w, sym, 900, days * 96)
         cs60 = candles(w, sym, 3600, days * 24)
+        log("depth", sym, "m1_days=", round((cs1[-1]["epoch"] - cs1[0]["epoch"]) / 86400.0, 1))
         m = build(cs5, cs15, cs60)
         for var in CFG["variants"]:
             for dur in CFG["expiries"]:
@@ -307,9 +315,9 @@ def live():
         if "error" in r:
             raise SystemExit(STAMP + " LOGIN SWITCH FAIL " + json.dumps(r["error"]))
         lid, bal, cur = authorize(w)
-    if MODE == "demo" and not lid.startswith("VR"):
+    if MODE == "demo" and not lid.startswith(("VR", "DOT")):
         raise SystemExit(STAMP + " REFUSED mode demo but account " + lid)
-    if MODE == "real" and lid.startswith("VR"):
+    if MODE == "real" and lid.startswith(("VR", "DOT")):
         raise SystemExit(STAMP + " REFUSED mode real but account " + lid)
     log("live on", lid, "balance", bal, cur)
     keep = []
