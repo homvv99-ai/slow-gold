@@ -1,12 +1,17 @@
 {
   "symbols": ["R_75", "R_100"],
-  "variants": ["V1", "V2", "V3"],
+  "variants": ["V1", "V2", "V3", "V4"],
+  "variant_frames": {
+    "V1": "M5", "V2": "M5", "V3": "M5", "V4": "M1"
+  },
   "expiries": [120, 150, 180, 300],
+  "expiries_v4": [120],
   "stake_pct": 1.0,
   "max_trades_per_day": 12,
   "daily_loss_stop": 4,
   "payout_assumed": 0.80,
   "max_candles_m5": 60000,
   "backtest_days": 365,
+  "backtest_days_v4": 30,
   "gate": {"ev_pct": 2.0, "min_trades": 1000, "margin_pts": 3.0, "max_dd_pct": 20.0}
 }
