@@ -7,5 +7,6 @@
   "daily_loss_stop": 4,
   "payout_assumed": 0.80,
   "max_candles_m5": 60000,
+  "backtest_days": 365,
   "gate": {"ev_pct": 2.0, "min_trades": 1000, "margin_pts": 3.0, "max_dd_pct": 20.0}
 }
