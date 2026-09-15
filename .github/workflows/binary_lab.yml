@@ -1,0 +1,32 @@
+name: lab
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "probe | backtest | live"
+        required: false
+        default: "probe"
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install websocket-client
+      - name: run lab
+        env:
+          DERIV_TOKEN: ${{ secrets.DERIV_TOKEN }}
+          ACTION: ${{ github.event.inputs.action || 'probe' }}
+        run: python binary_lab.py "$ACTION"
+      - name: commit results
+        run: |
+          git config user.name "slow-gold lab"
+          git config user.email "lab@slowgold.local"
+          git add site/data/lab_cells.json site/data/lab_stats.json site/data/lab_trades.json site/data/lab_live.json 2>/dev/null || true
+          if ! git diff --cached --quiet; then git commit -m "lab: results"; git push; fi
