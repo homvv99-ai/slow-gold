@@ -1,0 +1,11 @@
+{
+  "symbols": ["R_75", "R_100"],
+  "variants": ["V1", "V2", "V3"],
+  "expiries": [120, 150, 180, 300],
+  "stake_pct": 1.0,
+  "max_trades_per_day": 12,
+  "daily_loss_stop": 4,
+  "payout_assumed": 0.80,
+  "max_candles_m5": 60000,
+  "gate": {"ev_pct": 2.0, "min_trades": 1000, "margin_pts": 3.0, "max_dd_pct": 20.0}
+}
