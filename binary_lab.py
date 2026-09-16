@@ -602,12 +602,13 @@ def probe():
     log("accounts status", r.status_code, r.text[:300])
     if r.status_code != 200:
         return
-    j = r.json()
-    ids = []
-    if isinstance(j, dict):
-        ids = [a.get("id") or a.get("account_id") for a in j.get("accounts", []) if isinstance(a, dict)]
-    elif isinstance(j, list):
-        ids = [a.get("id") or a.get("account_id") for a in j if isinstance(a, dict)]
+        j = r.json()
+    rows = j.get("data") if isinstance(j, dict) else j
+    if not isinstance(rows, list):
+        rows = []
+    ids = [a.get("account_id") for a in rows if isinstance(a, dict) and a.get("account_type") == "demo"]
+    if not ids:
+        ids = [a.get("account_id") for a in rows if isinstance(a, dict)]
     log("account ids", ids)
     if not ids:
         return
