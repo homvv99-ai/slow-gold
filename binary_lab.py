@@ -1,6 +1,7 @@
 import json, os, sys, time, datetime, bisect, math
 import websocket
 import requests
+
 MODE = open("lab_mode.txt", encoding="utf-8").read().strip().lower() or "demo"
 STAMP = "[MODE: %s]" % MODE.upper()
 CFG = json.load(open("lab_config.json", encoding="utf-8"))
@@ -10,6 +11,16 @@ OUT = "site/data"
 ACTION = sys.argv[1] if len(sys.argv) > 1 else "probe"
 APP_ID = CFG.get("app_id", "1089")
 API_BASE = "https://api.derivws.com"
+
+def log(*a):
+    print(STAMP, *a, flush=True)
+
+def connect():
+    return websocket.create_connection(WS_URL, timeout=30)
+
+def call(w, payload):
+    w.send(json.dumps(payload))
+    return json.loads(w.recv())
 
 def rest(method, path):
     h = {"Authorization": "Bearer " + TOKEN, "Deriv-App-ID": APP_ID}
@@ -29,15 +40,6 @@ def find_ws_url(j):
             if u:
                 return u
     return None
-def log(*a):
-    print(STAMP, *a, flush=True)
-
-def connect():
-    return websocket.create_connection(WS_URL, timeout=30)
-
-def call(w, payload):
-    w.send(json.dumps(payload))
-    return json.loads(w.recv())
 
 def authorize(w):
     r = call(w, {"authorize": TOKEN})
@@ -331,9 +333,6 @@ def summarize(eq, wins, n, gw, gl, evs, curve, peak, maxdd, skipped, variant, du
             "margin_pts": round(margin, 2), "verdict": verdict,
             "skipped": skipped, "curve": curve}
 
-# ═══════════════════════════════════════════════════════
-# وضع الاستكشاف: المسابير P1-P7 (مدققة v4)
-# ═══════════════════════════════════════════════════════
 def classify_asset(sym):
     if sym.startswith(("BOOM", "CRASH")):
         return "spike"
@@ -590,6 +589,7 @@ def explore():
     w.close()
     json.dump(report, open(OUT + "/lab_explore.json", "w", encoding="utf-8"), ensure_ascii=False, indent=1)
     log("explore complete assets=", len(report), "total_hints=", sum(len(r["hints"]) for r in report))
+
 def probe():
     w = connect()
     cs = candles(w, "R_75", 300, 10)
@@ -602,7 +602,7 @@ def probe():
     log("accounts status", r.status_code, r.text[:300])
     if r.status_code != 200:
         return
-        j = r.json()
+    j = r.json()
     rows = j.get("data") if isinstance(j, dict) else j
     if not isinstance(rows, list):
         rows = []
@@ -624,7 +624,6 @@ def probe():
         log("new ws first msg", w2.recv()[:200])
         w2.close()
         log("NEW API OK")
-
 
 def backtest():
     days = CFG.get("backtest_days", 90)
