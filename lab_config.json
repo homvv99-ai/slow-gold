@@ -13,6 +13,6 @@
   "hint_min_n": 300,
   "hint_min_delta": 2.0,
   "explore_assets": ["R_10", "R_25", "R_50", "R_75", "R_100", "1HZ10V", "1HZ25V", "1HZ50V", "1HZ75V", "1HZ100V", "BOOM300N", "BOOM500", "BOOM600", "BOOM900", "BOOM1000", "CRASH300N", "CRASH500", "CRASH600", "CRASH900", "CRASH1000", "JD10", "JD25", "JD50", "JD75", "JD100", "STPRNG", "frxEURUSD", "frxGBPUSD", "frxUSDJPY", "frxAUDUSD", "frxUSDCAD", "frxUSDCHF", "frxNZDUSD", "frxEURGBP", "frxXAUUSD", "frxXAGUSD", "cryBTCUSD", "cryETHUSD"],
-   "app_id": "1089",
+     "app_id": "34pKGgS0wnq2rl32RUf2Y",
   "gate": {"ev_pct": 2.0, "min_trades": 1000, "margin_pts": 3.0, "max_dd_pct": 20.0}
 }
