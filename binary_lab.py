@@ -1,4 +1,4 @@
-import json, os, sys, time, datetime, bisect
+import json, os, sys, time, datetime, bisect, math
 import websocket
 
 MODE = open("lab_mode.txt", encoding="utf-8").read().strip().lower() or "demo"
@@ -33,7 +33,7 @@ def candles(w, sym, gran, need):
         r = call(w, {"ticks_history": sym, "adjust_start_time": 1, "count": 5000,
                      "end": end, "granularity": gran, "style": "candles"})
         if "error" in r:
-            raise SystemExit(STAMP + " CANDLES FAIL " + json.dumps(r["error"]))
+            raise SystemExit(STAMP + " CANDLES FAIL " + sym + " " + json.dumps(r["error"]))
         cs = r.get("candles", [])
         if not cs:
             break
@@ -150,22 +150,15 @@ def rej(cs, i, e20, side):
     rec = c["close"] < e20[i] and cs[i - 1]["close"] > e20[i - 1] and cs[i - 2]["close"] > e20[i - 2]
     return eng or pin or rec
 
-# ═══════════════════════════════════════════════════════════
-# V4: فرضية "4+1" على شموع M1 (كتقريب للتِك)
-# ═══════════════════════════════════════════════════════════
 def signal_v4(cs1, i):
-    """بعد 4 شموع M1 متتالية في اتجاه واحد، الخامسة تعكس ← CALL أو PUT"""
     if i < 5:
         return 0
     closes = [cs1[j]["close"] for j in range(i - 5, i)]
-    # اتجاهات الشموع الخمس الأخيرة (قبل الحالية)
     dirs = []
     for k in range(1, 5):
         dirs.append(1 if closes[k] > closes[k - 1] else -1)
-    # 4 هبوط متتالي ثم صعود ← CALL
     if dirs == [-1, -1, -1, -1] and cs1[i]["close"] > cs1[i - 1]["close"]:
         return 1
-    # 4 صعود متتالي ثم هبوط ← PUT
     if dirs == [1, 1, 1, 1] and cs1[i]["close"] < cs1[i - 1]["close"]:
         return -1
     return 0
@@ -209,7 +202,6 @@ def signal(m, cs5, i, t, variant):
     return 0
 
 def run_cell_m5(cs1, cs5, m, variant, dur, payout):
-    """الخلية الكلاسيكية لـ V1/V2/V3 على M5"""
     eq = 100.0
     wins = 0
     n = 0
@@ -266,7 +258,6 @@ def run_cell_m5(cs1, cs5, m, variant, dur, payout):
     return eq, wins, n, gw, gl, evs, curve, peak, maxdd, skipped
 
 def run_cell_m1(cs1, variant, dur, payout):
-    """الخلية الخاصة بـ V4 على M1 (كتقريب للتِك)"""
     eq = 100.0
     wins = 0
     n = 0
@@ -276,16 +267,11 @@ def run_cell_m1(cs1, variant, dur, payout):
     curve = []
     peak = eq
     maxdd = 0.0
-    day = None
-    day_n = 0
-    cons = 0
-    # لا نطبق سقف يومي على V4 لأنها كثرة الإشارات (سنقيس win% الخام)
     for i in range(5, len(cs1) - 5):
         s = signal_v4(cs1, i)
         if s == 0:
             continue
         entry_px = cs1[i]["close"]
-        # التسوية: بعد dur ثانية (dur/60 شموع M1)
         offset = max(1, dur // 60)
         if i + offset >= len(cs1):
             break
@@ -325,6 +311,266 @@ def summarize(eq, wins, n, gw, gl, evs, curve, peak, maxdd, skipped, variant, du
             "margin_pts": round(margin, 2), "verdict": verdict,
             "skipped": skipped, "curve": curve}
 
+# ═══════════════════════════════════════════════════════
+# وضع الاستكشاف: المسابير P1-P7 (مدققة v4)
+# ═══════════════════════════════════════════════════════
+def classify_asset(sym):
+    if sym.startswith(("BOOM", "CRASH")):
+        return "spike"
+    if sym.startswith("JD"):
+        return "jump"
+    if sym.startswith(("frx", "cry")):
+        return "market"
+    return "synth"
+
+def add_hint(res, probe, key, tot, hit, base_pct, min_n, min_delta):
+    if tot >= min_n:
+        p = hit * 100.0 / tot
+        d = p - base_pct
+        if abs(d) >= min_delta:
+            res["hints"].append({"probe": probe, "key": key, "n": tot,
+                                  "p": round(p, 2), "base": round(base_pct, 2),
+                                  "delta": round(d, 2)})
+        return round(p, 2)
+    return None
+
+def explore_asset(w, sym):
+    try:
+        cs = candles(w, sym, 60, CFG.get("explore_days", 365) * 1440)
+    except SystemExit:
+        log("SKIP", sym, "fetch error")
+        return None
+    n = len(cs) if cs else 0
+    if n < 5000:
+        log("SKIP", sym, "short depth", n)
+        return None
+    depth = round((cs[-1]["epoch"] - cs[0]["epoch"]) / 86400.0, 1)
+    cls = classify_asset(sym)
+    closes = [c["close"] for c in cs]
+    ranges = [c["high"] - c["low"] for c in cs]
+    min_n = CFG.get("hint_min_n", 300)
+    min_delta = CFG.get("hint_min_delta", 2.0)
+    res = {"symbol": sym, "class": cls, "depth_days": depth, "n_candles": n, "hints": []}
+    ema_arr = [0.0] * n
+    is_jump = [False] * n
+    ema_r = ranges[0]
+    ema_arr[0] = ema_r
+    for i in range(1, n):
+        if ema_r > 0 and ranges[i] > 8.0 * ema_r:
+            is_jump[i] = True
+        else:
+            ema_r = ranges[i] * 0.02 + ema_r * 0.98
+        ema_arr[i] = ema_r
+    up3 = sum(1 for i in range(n - 3) if closes[i + 3] > closes[i])
+    base3 = up3 * 100.0 / (n - 3)
+    down3 = 100.0 - base3
+    res["base_p_up3"] = round(base3, 2)
+    if cls in ("spike", "jump"):
+        nj = sum(is_jump)
+        res["n_jumps"] = nj
+        res["jump_pct"] = round(nj * 100.0 / n, 2)
+        runs = []
+        q = 0
+        for i in range(n):
+            if is_jump[i]:
+                runs.append(q)
+                q = 0
+            else:
+                q += 1
+        runs.sort()
+        if runs:
+            res["quiet_p50"] = runs[int(0.5 * (len(runs) - 1))]
+            res["quiet_p90"] = runs[int(0.9 * (len(runs) - 1))]
+        K = 5
+        buckets = {"0-4": [0, 0], "5-9": [0, 0], "10-14": [0, 0], "15-19": [0, 0], "20+": [0, 0]}
+        q = 0
+        for i in range(n):
+            if is_jump[i]:
+                q = 0
+                continue
+            q += 1
+            if i + K < n:
+                key = "0-4" if q < 5 else "5-9" if q < 10 else "10-14" if q < 15 else "15-19" if q < 20 else "20+"
+                buckets[key][0] += 1
+                if any(is_jump[j] for j in range(i + 1, i + 1 + K)):
+                    buckets[key][1] += 1
+        base = nj * 1.0 / n
+        baseK = (1 - (1 - base) ** K) * 100.0
+        res["base_p_jump_in5"] = round(baseK, 2)
+        cond = {}
+        for k in ("0-4", "5-9", "10-14", "15-19", "20+"):
+            tot, hit = buckets[k]
+            p = add_hint(res, "P1", "quiet" + k, tot, hit, baseK, min_n, min_delta)
+            if p is not None:
+                cond[k] = [tot, p]
+        res["conditional"] = cond
+        if cls == "jump":
+            dirs = []
+            for i in range(1, n):
+                if is_jump[i]:
+                    dirs.append(1 if cs[i]["close"] >= cs[i]["open"] else -1)
+            if len(dirs) > 1:
+                same = sum(1 for a, b in zip(dirs, dirs[1:]) if a == b)
+                res["jump_dir_same_pct"] = round(same * 100.0 / (len(dirs) - 1), 2)
+    else:
+        out = {}
+        for h in (2, 3, 5):
+            up = sum(1 for i in range(n - h) if closes[i + h] > closes[i])
+            out["h%d_p_up" % h] = round(up * 100.0 / (n - h), 2)
+        def p_after(pattern):
+            tot = 0
+            hit = 0
+            for i in range(5, n - 2):
+                ok = True
+                for k in range(1, 5):
+                    d = closes[i - k] > closes[i - k - 1]
+                    if pattern == "down4" and d:
+                        ok = False
+                        break
+                    if pattern == "up4" and not d:
+                        ok = False
+                        break
+                if not ok:
+                    continue
+                if pattern == "down4":
+                    if not closes[i] > closes[i - 1]:
+                        continue
+                    tot += 1
+                    if closes[i + 2] > closes[i]:
+                        hit += 1
+                else:
+                    if not closes[i] < closes[i - 1]:
+                        continue
+                    tot += 1
+                    if closes[i + 2] < closes[i]:
+                        hit += 1
+            return [tot, round(hit * 100.0 / tot, 2)] if tot >= 100 else [tot, None]
+        out["after_down4_rev_p_up2"] = p_after("down4")
+        out["after_up4_rev_p_down2"] = p_after("up4")
+        hours = {}
+        for i in range(n - 3):
+            hb = (datetime.datetime.utcfromtimestamp(cs[i]["epoch"]).hour // 4) * 4
+            a, b = hours.get(hb, [0, 0])
+            hours[hb] = [a + 1, b + (1 if closes[i + 3] > closes[i] else 0)]
+        out["hour_p_up_h3"] = {str(k): round(v[1] * 100.0 / v[0], 2) for k, v in sorted(hours.items()) if v[0] >= 500}
+        res["continuous"] = out
+        for k, v in hours.items():
+            if v[0] >= 500:
+                add_hint(res, "P4", "hour%02d" % k, v[0], v[1], base3, min_n, min_delta)
+    med = sorted(closes)[n // 2]
+    m = 10.0 ** math.floor(math.log10(med)) if med > 0 else 1.0
+    steps = (m / 10.0, m)
+    rnd = {"above": [0, 0], "below": [0, 0]}
+    for i in range(n - 3):
+        c = closes[i]
+        if ema_arr[i] <= 0:
+            continue
+        bestd = 1e18
+        bestL = c
+        for s in steps:
+            L = round(c / s) * s
+            d = abs(c - L)
+            if d < bestd:
+                bestd = d
+                bestL = L
+        if bestd <= 0.1 * ema_arr[i]:
+            if c >= bestL:
+                rnd["above"][0] += 1
+                if closes[i + 3] > c:
+                    rnd["above"][1] += 1
+            else:
+                rnd["below"][0] += 1
+                if closes[i + 3] < c:
+                    rnd["below"][1] += 1
+    pa = add_hint(res, "P5", "above_round", rnd["above"][0], rnd["above"][1], base3, min_n, min_delta)
+    pb = add_hint(res, "P5", "below_round", rnd["below"][0], rnd["below"][1], down3, min_n, min_delta)
+    res["round"] = {"above_tot": rnd["above"][0], "above_p": pa,
+                    "below_tot": rnd["below"][0], "below_p": pb}
+    an = {"up3": [0, 0], "down3": [0, 0], "lwick": [0, 0], "uwick": [0, 0]}
+    cons = 1
+    for i in range(1, n - 3):
+        upc = cs[i]["close"] > cs[i]["open"]
+        pup = cs[i - 1]["close"] > cs[i - 1]["open"]
+        cons = cons + 1 if upc == pup else 1
+        rng = ranges[i]
+        body = abs(cs[i]["close"] - cs[i]["open"])
+        if cons >= 3 and upc:
+            an["up3"][0] += 1
+            if closes[i + 3] > closes[i]:
+                an["up3"][1] += 1
+        if cons >= 3 and not upc:
+            an["down3"][0] += 1
+            if closes[i + 3] < closes[i]:
+                an["down3"][1] += 1
+        if rng > 0:
+            lw = min(cs[i]["open"], cs[i]["close"]) - cs[i]["low"]
+            uw = cs[i]["high"] - max(cs[i]["open"], cs[i]["close"])
+            if lw >= 2 * body and lw >= 0.5 * rng:
+                an["lwick"][0] += 1
+                if closes[i + 3] > closes[i]:
+                    an["lwick"][1] += 1
+            if uw >= 2 * body and uw >= 0.5 * rng:
+                an["uwick"][0] += 1
+                if closes[i + 3] < closes[i]:
+                    an["uwick"][1] += 1
+    add_hint(res, "P6", "after_3up", an["up3"][0], an["up3"][1], base3, min_n, min_delta)
+    add_hint(res, "P6", "after_3down", an["down3"][0], an["down3"][1], down3, min_n, min_delta)
+    add_hint(res, "P6", "long_lower_wick", an["lwick"][0], an["lwick"][1], base3, min_n, min_delta)
+    add_hint(res, "P6", "long_upper_wick", an["uwick"][0], an["uwick"][1], down3, min_n, min_delta)
+    res["anatomy"] = an
+    day_agg = {}
+    for i in range(n):
+        dk = cs[i]["epoch"] // 86400
+        a = day_agg.get(dk)
+        if a is None:
+            day_agg[dk] = [cs[i]["high"], cs[i]["low"]]
+        else:
+            if cs[i]["high"] > a[0]:
+                a[0] = cs[i]["high"]
+            if cs[i]["low"] < a[1]:
+                a[1] = cs[i]["low"]
+    keys = sorted(day_agg)
+    prevmap = {}
+    for idx in range(1, len(keys)):
+        prevmap[keys[idx]] = day_agg[keys[idx - 1]]
+    pd = {"ph": [0, 0], "pl": [0, 0]}
+    tph = set()
+    tpl = set()
+    for i in range(n - 3):
+        dk = cs[i]["epoch"] // 86400
+        pv = prevmap.get(dk)
+        if not pv:
+            continue
+        if dk not in tph and cs[i]["high"] >= pv[0]:
+            tph.add(dk)
+            pd["ph"][0] += 1
+            if closes[i + 3] > closes[i]:
+                pd["ph"][1] += 1
+        if dk not in tpl and cs[i]["low"] <= pv[1]:
+            tpl.add(dk)
+            pd["pl"][0] += 1
+            if closes[i + 3] < closes[i]:
+                pd["pl"][1] += 1
+    add_hint(res, "P7", "touch_prev_high", pd["ph"][0], pd["ph"][1], base3, 30, min_delta)
+    add_hint(res, "P7", "touch_prev_low", pd["pl"][0], pd["pl"][1], down3, 30, min_delta)
+    res["prevday"] = pd
+    return res
+
+def explore():
+    report = []
+    w = connect()
+    for sym in CFG.get("explore_assets", []):
+        log("explore fetch", sym)
+        r = explore_asset(w, sym)
+        if r:
+            report.append(r)
+            log("explore done", sym, r["class"], "depth", r["depth_days"], "hints", len(r["hints"]))
+            for h in r["hints"]:
+                log("HINT", sym, h["probe"], h["key"], "n=", h["n"], "p=", h["p"], "base=", h["base"], "delta=", h["delta"])
+    w.close()
+    json.dump(report, open(OUT + "/lab_explore.json", "w", encoding="utf-8"), ensure_ascii=False, indent=1)
+    log("explore complete assets=", len(report), "total_hints=", sum(len(r["hints"]) for r in report))
+
 def probe():
     w = connect()
     cs = candles(w, "R_75", 300, 10)
@@ -342,7 +588,7 @@ def backtest():
     cells = []
     w = connect()
     for sym in CFG["symbols"]:
-        log("fetch", sym, "M15/M60/M5 (classic)")
+        log("fetch", sym)
         cs1_full = candles(w, sym, 60, max(days, days_v4) * 1440)
         if not cs1_full:
             raise SystemExit(STAMP + " NO M1 DATA " + sym)
@@ -351,7 +597,6 @@ def backtest():
         cs60 = candles(w, sym, 3600, days * 24)
         log("depth", sym, "m1_days=", round((cs1_full[-1]["epoch"] - cs1_full[0]["epoch"]) / 86400.0, 1))
         m = build(cs5, cs15, cs60)
-        # V1/V2/V3 على M5 بعمق days
         for var in ["V1", "V2", "V3"]:
             for dur in CFG["expiries"]:
                 res = run_cell_m5(cs1_full, cs5, m, var, dur, CFG["payout_assumed"])
@@ -359,9 +604,7 @@ def backtest():
                 cell["symbol"] = sym
                 cells.append(cell)
                 log(sym, var, dur, "n=", cell["n"], "win%=", cell["win_pct"], "ev%=", cell["ev_pct"], cell["verdict"])
-        # V4 على M1 بعمق days_v4
         cs1_v4 = cs1_full[-days_v4 * 1440:] if len(cs1_full) > days_v4 * 1440 else cs1_full
-        log("V4 depth", sym, "m1_days=", round((cs1_v4[-1]["epoch"] - cs1_v4[0]["epoch"]) / 86400.0, 1))
         for dur in CFG.get("expiries_v4", [120]):
             res = run_cell_m1(cs1_v4, "V4", dur, CFG["payout_assumed"])
             cell = summarize(*res, "V4", dur, CFG["payout_assumed"])
@@ -387,6 +630,8 @@ if ACTION == "probe":
     probe()
 elif ACTION == "backtest":
     backtest()
+elif ACTION == "explore":
+    explore()
 elif ACTION == "live":
     live()
 else:
