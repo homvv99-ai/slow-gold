@@ -590,17 +590,40 @@ def explore():
     w.close()
     json.dump(report, open(OUT + "/lab_explore.json", "w", encoding="utf-8"), ensure_ascii=False, indent=1)
     log("explore complete assets=", len(report), "total_hints=", sum(len(r["hints"]) for r in report))
-
 def probe():
     w = connect()
     cs = candles(w, "R_75", 300, 10)
     log("candles", len(cs), "first", cs[0]["epoch"], "last", cs[-1]["epoch"], "close", cs[-1]["close"])
-    if TOKEN:
-        lid, bal, cur = authorize(w)
-        log("auth ok", lid, bal, cur)
-    else:
-        log("no token in env")
     w.close()
+    if not TOKEN:
+        log("no token in env")
+        return
+    r = rest("GET", "/trading/v1/options/accounts")
+    log("accounts status", r.status_code, r.text[:300])
+    if r.status_code != 200:
+        return
+    j = r.json()
+    ids = []
+    if isinstance(j, dict):
+        ids = [a.get("id") or a.get("account_id") for a in j.get("accounts", []) if isinstance(a, dict)]
+    elif isinstance(j, list):
+        ids = [a.get("id") or a.get("account_id") for a in j if isinstance(a, dict)]
+    log("account ids", ids)
+    if not ids:
+        return
+    r2 = rest("POST", "/trading/v1/options/accounts/%s/otp" % ids[0])
+    log("otp status", r2.status_code, r2.text[:300])
+    if r2.status_code != 200:
+        return
+    u = find_ws_url(r2.json())
+    log("ws url found", bool(u))
+    if u:
+        w2 = websocket.create_connection(u, timeout=30)
+        w2.send(json.dumps({"ping": 1}))
+        log("new ws first msg", w2.recv()[:200])
+        w2.close()
+        log("NEW API OK")
+
 
 def backtest():
     days = CFG.get("backtest_days", 90)
