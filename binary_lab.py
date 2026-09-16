@@ -524,14 +524,14 @@ def explore_asset(w, sym):
         if rng > 0:
             lw = min(cs[i]["open"], cs[i]["close"]) - cs[i]["low"]
             uw = cs[i]["high"] - max(cs[i]["open"], cs[i]["close"])
-            if lw >= 2 * body and lw >= 0.5 * rng:
-                an["lwick"][0] += 1
-                if closes[i + 3] > closes[i]:
-                    an["lwick"][1] += 1
             if uw >= 2 * body and uw >= 0.5 * rng:
                 an["uwick"][0] += 1
                 if closes[i + 3] < closes[i]:
                     an["uwick"][1] += 1
+            if lw >= 2 * body and lw >= 0.5 * rng:
+                an["lwick"][0] += 1
+                if closes[i + 3] > closes[i]:
+                    an["lwick"][1] += 1
     add_hint(res, "P6", "after_3up", an["up3"][0], an["up3"][1], base3, min_n, min_delta)
     add_hint(res, "P6", "after_3down", an["down3"][0], an["down3"][1], down3, min_n, min_delta)
     add_hint(res, "P6", "long_lower_wick", an["lwick"][0], an["lwick"][1], base3, min_n, min_delta)
@@ -594,7 +594,19 @@ def explore():
             log("explore skip done", sym)
             continue
         log("explore fetch", sym)
-        r = explore_asset(w, sym)
+        r = None
+        for attempt in range(3):
+            try:
+                try:
+                    w.close()
+                except Exception:
+                    pass
+                w = connect()
+                r = explore_asset(w, sym)
+                break
+            except Exception as e:
+                log("retry", sym, attempt, str(e)[:120])
+                time.sleep(3)
         if r:
             report.append(r)
             log("explore done", sym, r["class"], "depth", r["depth_days"], "hints", len(r["hints"]))
@@ -609,6 +621,7 @@ def explore():
     json.dump(report, open(OUT + "/lab_explore.json", "w", encoding="utf-8"), ensure_ascii=False, indent=1)
     os.system('git add -f site/data/lab_explore.json && git commit -m "lab: explore final" && git push origin HEAD:' + ref)
     log("explore complete assets=", len(report), "total_hints=", sum(len(r["hints"]) for r in report))
+
 def probe():
     w = connect()
     cs = candles(w, "R_75", 300, 10)
@@ -680,7 +693,7 @@ def backtest():
              "trades": sum(c["n"] for c in cells),
              "pass_n": sum(1 for c in cells if c["verdict"] == "PASS"),
              "fail_n": sum(1 for c in cells if c["verdict"] == "FAIL"),
-             "pending_n": sum(1 for c in cells if c["verdict"] == "PENDING_DATA"),
+            "pending_n": sum(1 for c in cells if c["verdict"] == "PENDING_DATA"),
              "v4_cells": sum(1 for c in cells if c["variant"] == "V4")}
     json.dump(stats, open(OUT + "/lab_stats.json", "w", encoding="utf-8"), ensure_ascii=False, indent=1)
     log("backtest done", stats)
