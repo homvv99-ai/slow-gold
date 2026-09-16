@@ -1,6 +1,6 @@
 import json, os, sys, time, datetime, bisect, math
 import websocket
-
+import requests
 MODE = open("lab_mode.txt", encoding="utf-8").read().strip().lower() or "demo"
 STAMP = "[MODE: %s]" % MODE.upper()
 CFG = json.load(open("lab_config.json", encoding="utf-8"))
@@ -8,7 +8,27 @@ TOKEN = os.environ.get("DERIV_TOKEN", "")
 WS_URL = "wss://ws.derivws.com/websockets/v3?app_id=1089"
 OUT = "site/data"
 ACTION = sys.argv[1] if len(sys.argv) > 1 else "probe"
+APP_ID = CFG.get("app_id", "1089")
+API_BASE = "https://api.derivws.com"
 
+def rest(method, path):
+    h = {"Authorization": "Bearer " + TOKEN, "Deriv-App-ID": APP_ID}
+    return requests.request(method, API_BASE + path, headers=h, timeout=30)
+
+def find_ws_url(j):
+    if isinstance(j, dict):
+        for k, v in j.items():
+            if isinstance(v, str) and v.startswith("wss://"):
+                return v
+            u = find_ws_url(v)
+            if u:
+                return u
+    if isinstance(j, list):
+        for v in j:
+            u = find_ws_url(v)
+            if u:
+                return u
+    return None
 def log(*a):
     print(STAMP, *a, flush=True)
 
