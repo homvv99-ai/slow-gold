@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
     inputs:
       action:
-        description: "probe | backtest | live"
+        description: "probe | backtest | explore | live"
         required: false
         default: "probe"
 jobs:
@@ -28,5 +28,14 @@ jobs:
         run: |
           git config user.name "slow-gold lab"
           git config user.email "lab@slowgold.local"
-          git add site/data/lab_cells.json site/data/lab_stats.json site/data/lab_trades.json site/data/lab_live.json 2>/dev/null || true
-          if ! git diff --cached --quiet; then git commit -m "lab: results"; git push; fi
+          echo "--- workspace check ---"
+          ls -la site/data || true
+          git status --short || true
+          git add -f site/data/lab_cells.json site/data/lab_stats.json site/data/lab_trades.json site/data/lab_live.json site/data/lab_explore.json || true
+          if ! git diff --cached --quiet; then
+            git commit -m "lab: results"
+            git push origin HEAD:${{ github.ref_name }}
+            echo "--- committed and pushed ---"
+          else
+            echo "--- NOTHING STAGED: investigate ---"
+          fi
