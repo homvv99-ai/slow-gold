@@ -1,13 +1,13 @@
 {
- "generated_at": "2026-09-15 00:29:14",
+ "generated_at": "2026-09-16 00:26:41",
  "period": [
   "2020-01-01",
-  "2026-09-14"
+  "2026-09-15"
  ],
- "last_date": "2026-09-14",
- "last_close": 4294.99,
- "decision_price": 3905.32,
- "current_perf_pct": -1.2,
+ "last_date": "2026-09-15",
+ "last_close": 4286.3,
+ "decision_price": 4016.36,
+ "current_perf_pct": -1.4,
  "last_closed_trade": {
   "entry_date": "2025-08-27",
   "entry_price": 3378.0,
@@ -16,11 +16,11 @@
   "days": 206,
   "ret_pct": 33.1
  },
- "days_total": 2209,
+ "days_total": 2210,
  "no_pct": 41.9,
- "final_eq": 177.15,
- "total_ret_pct": 77.15,
- "max_dd_pct": -19.59,
+ "final_eq": 176.79,
+ "total_ret_pct": 76.79,
+ "max_dd_pct": -19.75,
  "trades_n": 18,
  "win_pct": 47.1,
  "profit_factor": 3.86,
@@ -58,14 +58,14 @@
   },
   {
    "year": 2026,
-   "ret_pct": 2.14,
-   "maxdd_pct": -19.59
+   "ret_pct": 1.93,
+   "maxdd_pct": -19.75
   }
  ],
  "ghosts": {
-  "buy_hold": 223.74,
-  "dca": 190.54,
-  "nervous": 97.54
+  "buy_hold": 223.28,
+  "dca": 190.15,
+  "nervous": 97.15
  },
  "waits_n": 18,
  "waits_saved_top": [
