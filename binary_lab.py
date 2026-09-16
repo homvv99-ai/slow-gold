@@ -577,8 +577,22 @@ def explore_asset(w, sym):
 
 def explore():
     report = []
+    done = set()
+    try:
+        old = json.load(open(OUT + "/lab_explore.json", encoding="utf-8"))
+        if isinstance(old, list):
+            report = old
+            done = set(r.get("symbol") for r in old)
+    except Exception:
+        pass
+    os.system('git config user.name "slow-gold lab" && git config user.email "lab@slowgold.local"')
+    ref = os.environ.get("GITHUB_REF_NAME", "main")
     w = connect()
+    since = 0
     for sym in CFG.get("explore_assets", []):
+        if sym in done:
+            log("explore skip done", sym)
+            continue
         log("explore fetch", sym)
         r = explore_asset(w, sym)
         if r:
@@ -586,10 +600,15 @@ def explore():
             log("explore done", sym, r["class"], "depth", r["depth_days"], "hints", len(r["hints"]))
             for h in r["hints"]:
                 log("HINT", sym, h["probe"], h["key"], "n=", h["n"], "p=", h["p"], "base=", h["base"], "delta=", h["delta"])
+        json.dump(report, open(OUT + "/lab_explore.json", "w", encoding="utf-8"), ensure_ascii=False, indent=1)
+        since += 1
+        if since >= 6:
+            os.system('git add -f site/data/lab_explore.json && git commit -m "lab: explore partial" && git push origin HEAD:' + ref)
+            since = 0
     w.close()
     json.dump(report, open(OUT + "/lab_explore.json", "w", encoding="utf-8"), ensure_ascii=False, indent=1)
+    os.system('git add -f site/data/lab_explore.json && git commit -m "lab: explore final" && git push origin HEAD:' + ref)
     log("explore complete assets=", len(report), "total_hints=", sum(len(r["hints"]) for r in report))
-
 def probe():
     w = connect()
     cs = candles(w, "R_75", 300, 10)
