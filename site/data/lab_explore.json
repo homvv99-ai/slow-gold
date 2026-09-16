@@ -462,5 +462,472 @@
     92
    ]
   }
+ },
+ {
+  "symbol": "1HZ25V",
+  "class": "synth",
+  "depth_days": 365.0,
+  "n_candles": 525600,
+  "hints": [
+   {
+    "probe": "P5",
+    "key": "above_round",
+    "n": 1954,
+    "p": 48.06,
+    "base": 50.15,
+    "delta": -2.09
+   },
+   {
+    "probe": "P7",
+    "key": "touch_prev_high",
+    "n": 189,
+    "p": 48.15,
+    "base": 50.15,
+    "delta": -2.0
+   }
+  ],
+  "base_p_up3": 50.15,
+  "continuous": {
+   "h2_p_up": 50.14,
+   "h3_p_up": 50.15,
+   "h5_p_up": 50.23,
+   "after_down4_rev_p_up2": [
+    16275,
+    50.25
+   ],
+   "after_up4_rev_p_down2": [
+    16395,
+    49.97
+   ],
+   "hour_p_up_h3": {
+    "0": 50.11,
+    "4": 50.18,
+    "8": 50.24,
+    "12": 50.26,
+    "16": 49.88,
+    "20": 50.23
+   }
+  },
+  "round": {
+   "above_tot": 1954,
+   "above_p": 48.06,
+   "below_tot": 1881,
+   "below_p": 49.55
+  },
+  "anatomy": {
+   "up3": [
+    65701,
+    32948
+   ],
+   "down3": [
+    64997,
+    32530
+   ],
+   "lwick": [
+    58482,
+    29353
+   ],
+   "uwick": [
+    57971,
+    28828
+   ]
+  },
+  "prevday": {
+   "ph": [
+    189,
+    91
+   ],
+   "pl": [
+    176,
+    87
+   ]
+  }
+ },
+ {
+  "symbol": "1HZ50V",
+  "class": "synth",
+  "depth_days": 365.0,
+  "n_candles": 525600,
+  "hints": [
+   {
+    "probe": "P7",
+    "key": "touch_prev_high",
+    "n": 185,
+    "p": 44.86,
+    "base": 49.98,
+    "delta": -5.11
+   },
+   {
+    "probe": "P7",
+    "key": "touch_prev_low",
+    "n": 181,
+    "p": 46.96,
+    "base": 50.02,
+    "delta": -3.06
+   }
+  ],
+  "base_p_up3": 49.98,
+  "continuous": {
+   "h2_p_up": 50.01,
+   "h3_p_up": 49.98,
+   "h5_p_up": 49.95,
+   "after_down4_rev_p_up2": [
+    16508,
+    50.42
+   ],
+   "after_up4_rev_p_down2": [
+    16341,
+    50.38
+   ],
+   "hour_p_up_h3": {
+    "0": 49.9,
+    "4": 50.15,
+    "8": 50.19,
+    "12": 49.85,
+    "16": 49.53,
+    "20": 50.23
+   }
+  },
+  "round": {
+   "above_tot": 23,
+   "above_p": null,
+   "below_tot": 25,
+   "below_p": null
+  },
+  "anatomy": {
+   "up3": [
+    65749,
+    32964
+   ],
+   "down3": [
+    66006,
+    33203
+   ],
+   "lwick": [
+    58267,
+    29011
+   ],
+   "uwick": [
+    58428,
+    29161
+   ]
+  },
+  "prevday": {
+   "ph": [
+    185,
+    83
+   ],
+   "pl": [
+    181,
+    85
+   ]
+  }
+ },
+ {
+  "symbol": "1HZ75V",
+  "class": "synth",
+  "depth_days": 365.0,
+  "n_candles": 525604,
+  "hints": [
+   {
+    "probe": "P7",
+    "key": "touch_prev_high",
+    "n": 196,
+    "p": 56.12,
+    "base": 49.99,
+    "delta": 6.13
+   },
+   {
+    "probe": "P7",
+    "key": "touch_prev_low",
+    "n": 188,
+    "p": 47.34,
+    "base": 50.01,
+    "delta": -2.67
+   }
+  ],
+  "base_p_up3": 49.99,
+  "continuous": {
+   "h2_p_up": 49.99,
+   "h3_p_up": 49.99,
+   "h5_p_up": 50.09,
+   "after_down4_rev_p_up2": [
+    16415,
+    50.03
+   ],
+   "after_up4_rev_p_down2": [
+    16274,
+    50.37
+   ],
+   "hour_p_up_h3": {
+    "0": 50.25,
+    "4": 49.86,
+    "8": 49.88,
+    "12": 50.11,
+    "16": 49.86,
+    "20": 50.01
+   }
+  },
+  "round": {
+   "above_tot": 3822,
+   "above_p": 50.65,
+   "below_tot": 3702,
+   "below_p": 48.92
+  },
+  "anatomy": {
+   "up3": [
+    65541,
+    32893
+   ],
+   "down3": [
+    65902,
+    32960
+   ],
+   "lwick": [
+    58359,
+    29261
+   ],
+   "uwick": [
+    58469,
+    29110
+   ]
+  },
+  "prevday": {
+   "ph": [
+    196,
+    110
+   ],
+   "pl": [
+    188,
+    89
+   ]
+  }
+ },
+ {
+  "symbol": "1HZ100V",
+  "class": "synth",
+  "depth_days": 365.0,
+  "n_candles": 525600,
+  "hints": [],
+  "base_p_up3": 49.91,
+  "continuous": {
+   "h2_p_up": 49.94,
+   "h3_p_up": 49.91,
+   "h5_p_up": 50.02,
+   "after_down4_rev_p_up2": [
+    16522,
+    50.1
+   ],
+   "after_up4_rev_p_down2": [
+    16144,
+    49.28
+   ],
+   "hour_p_up_h3": {
+    "0": 50.03,
+    "4": 49.74,
+    "8": 50.32,
+    "12": 49.64,
+    "16": 49.83,
+    "20": 49.89
+   }
+  },
+  "round": {
+   "above_tot": 11099,
+   "above_p": 49.83,
+   "below_tot": 10578,
+   "below_p": 50.26
+  },
+  "anatomy": {
+   "up3": [
+    65255,
+    32762
+   ],
+   "down3": [
+    66227,
+    33058
+   ],
+   "lwick": [
+    58565,
+    29198
+   ],
+   "uwick": [
+    58870,
+    29444
+   ]
+  },
+  "prevday": {
+   "ph": [
+    191,
+    98
+   ],
+   "pl": [
+    186,
+    91
+   ]
+  }
+ },
+ {
+  "symbol": "BOOM300N",
+  "class": "spike",
+  "depth_days": 365.0,
+  "n_candles": 525600,
+  "hints": [
+   {
+    "probe": "P7",
+    "key": "touch_prev_high",
+    "n": 158,
+    "p": 31.01,
+    "base": 33.38,
+    "delta": -2.37
+   },
+   {
+    "probe": "P7",
+    "key": "touch_prev_low",
+    "n": 206,
+    "p": 69.9,
+    "base": 66.62,
+    "delta": 3.29
+   }
+  ],
+  "base_p_up3": 33.38,
+  "n_jumps": 4004,
+  "jump_pct": 0.76,
+  "quiet_p50": 81,
+  "quiet_p90": 312,
+  "base_p_jump_in5": 3.75,
+  "conditional": {
+   "0-4": [
+    15595,
+    4.92
+   ],
+   "5-9": [
+    18627,
+    4.71
+   ],
+   "10-14": [
+    17749,
+    4.57
+   ],
+   "15-19": [
+    16937,
+    4.49
+   ],
+   "20+": [
+    452684,
+    3.57
+   ]
+  },
+  "round": {
+   "above_tot": 920,
+   "above_p": 33.8,
+   "below_tot": 912,
+   "below_p": 66.89
+  },
+  "anatomy": {
+   "up3": [
+    2139,
+    672
+   ],
+   "down3": [
+    310897,
+    207055
+   ],
+   "lwick": [
+    2794,
+    937
+   ],
+   "uwick": [
+    2671,
+    1787
+   ]
+  },
+  "prevday": {
+   "ph": [
+    158,
+    49
+   ],
+   "pl": [
+    206,
+    144
+   ]
+  }
+ },
+ {
+  "symbol": "BOOM500",
+  "class": "spike",
+  "depth_days": 365.0,
+  "n_candles": 525600,
+  "hints": [
+   {
+    "probe": "P7",
+    "key": "touch_prev_high",
+    "n": 173,
+    "p": 27.17,
+    "base": 25.03,
+    "delta": 2.14
+   }
+  ],
+  "base_p_up3": 25.03,
+  "n_jumps": 21389,
+  "jump_pct": 4.07,
+  "quiet_p50": 16,
+  "quiet_p90": 55,
+  "base_p_jump_in5": 18.76,
+  "conditional": {
+   "0-4": [
+    76893,
+    18.98
+   ],
+   "5-9": [
+    79572,
+    19.19
+   ],
+   "10-14": [
+    64302,
+    18.86
+   ],
+   "15-19": [
+    52171,
+    18.98
+   ],
+   "20+": [
+    231268,
+    18.28
+   ]
+  },
+  "round": {
+   "above_tot": 397,
+   "above_p": 25.44,
+   "below_tot": 431,
+   "below_p": 73.09
+  },
+  "anatomy": {
+   "up3": [
+    666,
+    162
+   ],
+   "down3": [
+    377551,
+    283100
+   ],
+   "lwick": [
+    982,
+    260
+   ],
+   "uwick": [
+    1026,
+    784
+   ]
+  },
+  "prevday": {
+   "ph": [
+    173,
+    47
+   ],
+   "pl": [
+    184,
+    138
+   ]
+  }
  }
 ]
