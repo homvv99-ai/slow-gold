@@ -18,7 +18,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - run: pip install websocket-client
+      - run:       - run: pip install websocket-client requests
       - name: run lab
         env:
           DERIV_TOKEN: ${{ secrets.DERIV_TOKEN }}
