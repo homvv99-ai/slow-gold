@@ -622,6 +622,33 @@ def explore():
     os.system('git add -f site/data/lab_explore.json && git commit -m "lab: explore final" && git push origin HEAD:' + ref)
     log("explore complete assets=", len(report), "total_hints=", sum(len(r["hints"]) for r in report))
 
+def payouts():
+    w = connect()
+    grid = []
+    for sym in ["R_10", "R_75", "1HZ25V", "1HZ50V", "JD25", "JD10", "STPRNG",
+                "BOOM300N", "BOOM600", "CRASH600", "CRASH1000", "frxEURUSD", "frxXAUUSD"]:
+        for typ in ["CALL", "PUT"]:
+            for dur in [120, 180, 300]:
+                grid.append((sym, typ, dur, "s"))
+    for sym in ["BOOM300N", "BOOM600", "CRASH600", "CRASH1000"]:
+        for typ in ["ONETOUCH", "NOTOUCH"]:
+            for dur in [5, 10, 15]:
+                grid.append((sym, typ, dur, "m"))
+    for sym, typ, dur, unit in grid:
+        r = call(w, {"proposal": 1, "amount": 1, "basis": "stake", "contract_type": typ,
+                     "currency": "USD", "duration": dur, "duration_unit": unit, "symbol": sym})
+        if "error" in r:
+            log("PAYOUT", sym, typ, dur, unit, "ERR", r["error"].get("code", "?"))
+            continue
+        p = r["proposal"]
+        payout = float(p.get("payout", 0))
+        ask = float(p.get("ask_price", 1))
+        ratio = round((payout / ask - 1) * 100, 2) if ask > 0 else 0
+        log("PAYOUT", sym, typ, dur, unit, "payout=", payout, "ask=", ask, "return%=", ratio)
+        time.sleep(0.2)
+    w.close()
+    log("payouts done")
+
 def probe():
     w = connect()
     cs = candles(w, "R_75", 300, 10)
@@ -701,7 +728,9 @@ def backtest():
 def live():
     log("live mode not implemented in this build")
 
-if ACTION == "probe":
+if ACTION == "payouts":
+    payouts()
+elif ACTION == "probe":
     probe()
 elif ACTION == "backtest":
     backtest()
