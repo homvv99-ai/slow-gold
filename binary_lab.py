@@ -16,7 +16,7 @@ def log(*a):
     print(STAMP, *a, flush=True)
 
 def connect():
-    return websocket.create_connection(WS_URL, timeout=30)
+    return websocket.create_connection("wss://ws.derivws.com/websockets/v3?app_id=" + str(APP_ID), timeout=30)
 
 class Link:
     def __init__(self):
@@ -659,6 +659,11 @@ def explore():
 
 def payouts():
     link = Link()
+    try:
+        lid, bal, cur = authorize(link)
+        log("payouts auth ok", lid, bal, cur)
+    except Exception as e:
+        log("payouts auth skip", str(e)[:100])
     grid = []
     for sym in ["R_10", "R_75", "1HZ25V", "1HZ50V", "JD25", "JD10", "STPRNG",
                 "BOOM300N", "BOOM600", "CRASH600", "CRASH1000", "frxEURUSD", "frxXAUUSD"]:
@@ -673,7 +678,7 @@ def payouts():
         r = link.call({"proposal": 1, "amount": 1, "basis": "stake", "contract_type": typ,
                        "currency": "USD", "duration": dur, "duration_unit": unit, "symbol": sym})
         if "error" in r:
-            log("PAYOUT", sym, typ, dur, unit, "ERR", r["error"].get("code", "?"))
+            log("PAYOUT", sym, typ, dur, unit, "ERR", r["error"].get("code", "?"), r["error"].get("message", "")[:100])
         else:
             p = r["proposal"]
             payout = float(p.get("payout", 0))
@@ -755,7 +760,7 @@ def backtest():
              "trades": sum(c["n"] for c in cells),
              "pass_n": sum(1 for c in cells if c["verdict"] == "PASS"),
              "fail_n": sum(1 for c in cells if c["verdict"] == "FAIL"),
-             "pending_n": sum(1 for c in cells if c["verdict"] == "PENDING_DATA"),
+            "pending_n": sum(1 for c in cells if c["verdict"] == "PENDING_DATA"),
              "v4_cells": sum(1 for c in cells if c["variant"] == "V4")}
     json.dump(stats, open(OUT + "/lab_stats.json", "w", encoding="utf-8"), ensure_ascii=False, indent=1)
     log("backtest done", stats)
