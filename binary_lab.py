@@ -18,9 +18,48 @@ def log(*a):
 def connect():
     return websocket.create_connection(WS_URL, timeout=30)
 
-def call(w, payload):
-    w.send(json.dumps(payload))
-    return json.loads(w.recv())
+class Link:
+    def __init__(self):
+        self.w = None
+    def get(self):
+        if self.w is None:
+            self.w = connect()
+        return self.w
+    def reset(self):
+        try:
+            if self.w is not None:
+                self.w.close()
+        except Exception:
+            pass
+        self.w = connect()
+    def close(self):
+        try:
+            if self.w is not None:
+                self.w.close()
+        except Exception:
+            pass
+        self.w = None
+    def call(self, payload):
+        last = None
+        r = None
+        for attempt in range(3):
+            try:
+                w = self.get()
+                w.send(json.dumps(payload))
+                r = json.loads(w.recv())
+            except Exception as e:
+                last = e
+                self.reset()
+                time.sleep(2)
+                continue
+            if isinstance(r, dict) and r.get("error", {}).get("code", "") == "RateLimit":
+                log("rate-wait", attempt)
+                time.sleep(20)
+                continue
+            return r
+        if last is not None:
+            raise last
+        return r
 
 def rest(method, path):
     h = {"Authorization": "Bearer " + TOKEN, "Deriv-App-ID": APP_ID}
@@ -41,19 +80,19 @@ def find_ws_url(j):
                 return u
     return None
 
-def authorize(w):
-    r = call(w, {"authorize": TOKEN})
+def authorize(link):
+    r = link.call({"authorize": TOKEN})
     if "error" in r:
         raise SystemExit(STAMP + " AUTH FAIL " + json.dumps(r["error"]))
     a = r["authorize"]
     return a["loginid"], float(a["balance"]), a["currency"]
 
-def candles(w, sym, gran, need):
+def candles(link, sym, gran, need):
     out = {}
     end = "latest"
     while len(out) < need:
-        r = call(w, {"ticks_history": sym, "adjust_start_time": 1, "count": 5000,
-                     "end": end, "granularity": gran, "style": "candles"})
+        r = link.call({"ticks_history": sym, "adjust_start_time": 1, "count": 5000,
+                       "end": end, "granularity": gran, "style": "candles"})
         if "error" in r:
             raise SystemExit(STAMP + " CANDLES FAIL " + sym + " " + json.dumps(r["error"]))
         cs = r.get("candles", [])
@@ -353,9 +392,9 @@ def add_hint(res, probe, key, tot, hit, base_pct, min_n, min_delta):
         return round(p, 2)
     return None
 
-def explore_asset(w, sym):
+def explore_asset(link, sym):
     try:
-        cs = candles(w, sym, 60, CFG.get("explore_days", 365) * 1440)
+        cs = candles(link, sym, 60, CFG.get("explore_days", 365) * 1440)
     except SystemExit:
         log("SKIP", sym, "fetch error")
         return None
@@ -587,7 +626,7 @@ def explore():
         pass
     os.system('git config user.name "slow-gold lab" && git config user.email "lab@slowgold.local"')
     ref = os.environ.get("GITHUB_REF_NAME", "main")
-    w = connect()
+    link = Link()
     since = 0
     for sym in CFG.get("explore_assets", []):
         if sym in done:
@@ -597,12 +636,8 @@ def explore():
         r = None
         for attempt in range(3):
             try:
-                try:
-                    w.close()
-                except Exception:
-                    pass
-                w = connect()
-                r = explore_asset(w, sym)
+                link.reset()
+                r = explore_asset(link, sym)
                 break
             except Exception as e:
                 log("retry", sym, attempt, str(e)[:120])
@@ -617,13 +652,13 @@ def explore():
         if since >= 6:
             os.system('git add -f site/data/lab_explore.json && git commit -m "lab: explore partial" && git push origin HEAD:' + ref)
             since = 0
-    w.close()
+    link.close()
     json.dump(report, open(OUT + "/lab_explore.json", "w", encoding="utf-8"), ensure_ascii=False, indent=1)
     os.system('git add -f site/data/lab_explore.json && git commit -m "lab: explore final" && git push origin HEAD:' + ref)
     log("explore complete assets=", len(report), "total_hints=", sum(len(r["hints"]) for r in report))
 
 def payouts():
-    w = connect()
+    link = Link()
     grid = []
     for sym in ["R_10", "R_75", "1HZ25V", "1HZ50V", "JD25", "JD10", "STPRNG",
                 "BOOM300N", "BOOM600", "CRASH600", "CRASH1000", "frxEURUSD", "frxXAUUSD"]:
@@ -635,25 +670,25 @@ def payouts():
             for dur in [5, 10, 15]:
                 grid.append((sym, typ, dur, "m"))
     for sym, typ, dur, unit in grid:
-        r = call(w, {"proposal": 1, "amount": 1, "basis": "stake", "contract_type": typ,
-                     "currency": "USD", "duration": dur, "duration_unit": unit, "symbol": sym})
+        r = link.call({"proposal": 1, "amount": 1, "basis": "stake", "contract_type": typ,
+                       "currency": "USD", "duration": dur, "duration_unit": unit, "symbol": sym})
         if "error" in r:
             log("PAYOUT", sym, typ, dur, unit, "ERR", r["error"].get("code", "?"))
-            continue
-        p = r["proposal"]
-        payout = float(p.get("payout", 0))
-        ask = float(p.get("ask_price", 1))
-        ratio = round((payout / ask - 1) * 100, 2) if ask > 0 else 0
-        log("PAYOUT", sym, typ, dur, unit, "payout=", payout, "ask=", ask, "return%=", ratio)
-        time.sleep(0.2)
-    w.close()
+        else:
+            p = r["proposal"]
+            payout = float(p.get("payout", 0))
+            ask = float(p.get("ask_price", 1))
+            ratio = round((payout / ask - 1) * 100, 2) if ask > 0 else 0
+            log("PAYOUT", sym, typ, dur, unit, "payout=", payout, "ask=", ask, "return%=", ratio)
+        time.sleep(1.2)
+    link.close()
     log("payouts done")
 
 def probe():
-    w = connect()
-    cs = candles(w, "R_75", 300, 10)
+    link = Link()
+    cs = candles(link, "R_75", 300, 10)
     log("candles", len(cs), "first", cs[0]["epoch"], "last", cs[-1]["epoch"], "close", cs[-1]["close"])
-    w.close()
+    link.close()
     if not TOKEN:
         log("no token in env")
         return
@@ -688,15 +723,15 @@ def backtest():
     days = CFG.get("backtest_days", 90)
     days_v4 = CFG.get("backtest_days_v4", 30)
     cells = []
-    w = connect()
+    link = Link()
     for sym in CFG["symbols"]:
         log("fetch", sym)
-        cs1_full = candles(w, sym, 60, max(days, days_v4) * 1440)
+        cs1_full = candles(link, sym, 60, max(days, days_v4) * 1440)
         if not cs1_full:
             raise SystemExit(STAMP + " NO M1 DATA " + sym)
-        cs5 = candles(w, sym, 300, days * 288)
-        cs15 = candles(w, sym, 900, days * 96)
-        cs60 = candles(w, sym, 3600, days * 24)
+        cs5 = candles(link, sym, 300, days * 288)
+        cs15 = candles(link, sym, 900, days * 96)
+        cs60 = candles(link, sym, 3600, days * 24)
         log("depth", sym, "m1_days=", round((cs1_full[-1]["epoch"] - cs1_full[0]["epoch"]) / 86400.0, 1))
         m = build(cs5, cs15, cs60)
         for var in ["V1", "V2", "V3"]:
@@ -713,14 +748,14 @@ def backtest():
             cell["symbol"] = sym
             cells.append(cell)
             log(sym, "V4", dur, "n=", cell["n"], "win%=", cell["win_pct"], "ev%=", cell["ev_pct"], cell["verdict"])
-    w.close()
+    link.close()
     json.dump(cells, open(OUT + "/lab_cells.json", "w", encoding="utf-8"), ensure_ascii=False)
     stats = {"generated_at": datetime.datetime.utcnow().isoformat() + "Z",
              "mode": MODE, "action": "backtest", "cells": len(cells),
              "trades": sum(c["n"] for c in cells),
              "pass_n": sum(1 for c in cells if c["verdict"] == "PASS"),
              "fail_n": sum(1 for c in cells if c["verdict"] == "FAIL"),
-            "pending_n": sum(1 for c in cells if c["verdict"] == "PENDING_DATA"),
+             "pending_n": sum(1 for c in cells if c["verdict"] == "PENDING_DATA"),
              "v4_cells": sum(1 for c in cells if c["variant"] == "V4")}
     json.dump(stats, open(OUT + "/lab_stats.json", "w", encoding="utf-8"), ensure_ascii=False, indent=1)
     log("backtest done", stats)
