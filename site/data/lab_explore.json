@@ -1612,5 +1612,495 @@
     96
    ]
   }
+ },
+ {
+  "symbol": "CRASH300N",
+  "class": "spike",
+  "depth_days": 365.0,
+  "n_candles": 525600,
+  "hints": [
+   {
+    "probe": "P7",
+    "key": "touch_prev_low",
+    "n": 173,
+    "p": 28.9,
+    "base": 33.4,
+    "delta": -4.5
+   }
+  ],
+  "base_p_up3": 66.6,
+  "n_jumps": 4195,
+  "jump_pct": 0.8,
+  "quiet_p50": 74,
+  "quiet_p90": 308,
+  "base_p_jump_in5": 3.93,
+  "conditional": {
+   "0-4": [
+    16331,
+    5.07
+   ],
+   "5-9": [
+    19475,
+    4.64
+   ],
+   "10-14": [
+    18572,
+    4.99
+   ],
+   "15-19": [
+    17645,
+    4.93
+   ],
+   "20+": [
+    449377,
+    3.73
+   ]
+  },
+  "round": {
+   "above_tot": 703,
+   "above_p": 67.43,
+   "below_tot": 650,
+   "below_p": 33.69
+  },
+  "anatomy": {
+   "up3": [
+    310310,
+    206652
+   ],
+   "down3": [
+    2118,
+    711
+   ],
+   "lwick": [
+    2639,
+    1749
+   ],
+   "uwick": [
+    2664,
+    922
+   ]
+  },
+  "prevday": {
+   "ph": [
+    186,
+    123
+   ],
+   "pl": [
+    173,
+    50
+   ]
+  }
+ },
+ {
+  "symbol": "CRASH500",
+  "class": "spike",
+  "depth_days": 365.0,
+  "n_candles": 525600,
+  "hints": [
+   {
+    "probe": "P7",
+    "key": "touch_prev_low",
+    "n": 182,
+    "p": 22.53,
+    "base": 25.03,
+    "delta": -2.5
+   }
+  ],
+  "base_p_up3": 74.97,
+  "n_jumps": 21630,
+  "jump_pct": 4.12,
+  "quiet_p50": 16,
+  "quiet_p90": 55,
+  "base_p_jump_in5": 18.95,
+  "conditional": {
+   "0-4": [
+    77510,
+    19.46
+   ],
+   "5-9": [
+    79798,
+    19.01
+   ],
+   "10-14": [
+    64627,
+    18.48
+   ],
+   "15-19": [
+    52681,
+    18.86
+   ],
+   "20+": [
+    229349,
+    18.64
+   ]
+  },
+  "round": {
+   "above_tot": 244,
+   "above_p": null,
+   "below_tot": 243,
+   "below_p": null
+  },
+  "anatomy": {
+   "up3": [
+    377640,
+    283245
+   ],
+   "down3": [
+    626,
+    164
+   ],
+   "lwick": [
+    1051,
+    789
+   ],
+   "uwick": [
+    1048,
+    265
+   ]
+  },
+  "prevday": {
+   "ph": [
+    189,
+    144
+   ],
+   "pl": [
+    182,
+    41
+   ]
+  }
+ },
+ {
+  "symbol": "CRASH600",
+  "class": "spike",
+  "depth_days": 365.0,
+  "n_candles": 525600,
+  "hints": [
+   {
+    "probe": "P7",
+    "key": "touch_prev_high",
+    "n": 197,
+    "p": 70.56,
+    "base": 77.88,
+    "delta": -7.32
+   }
+  ],
+  "base_p_up3": 77.88,
+  "n_jumps": 24660,
+  "jump_pct": 4.69,
+  "quiet_p50": 14,
+  "quiet_p90": 48,
+  "base_p_jump_in5": 21.36,
+  "conditional": {
+   "0-4": [
+    87784,
+    21.18
+   ],
+   "5-9": [
+    88680,
+    21.51
+   ],
+   "10-14": [
+    69609,
+    21.81
+   ],
+   "15-19": [
+    54429,
+    21.25
+   ],
+   "20+": [
+    200433,
+    21.38
+   ]
+  },
+  "round": {
+   "above_tot": 136,
+   "above_p": null,
+   "below_tot": 115,
+   "below_p": null
+  },
+  "anatomy": {
+   "up3": [
+    397889,
+    309700
+   ],
+   "down3": [
+    372,
+    86
+   ],
+   "lwick": [
+    745,
+    582
+   ],
+   "uwick": [
+    739,
+    166
+   ]
+  },
+  "prevday": {
+   "ph": [
+    197,
+    139
+   ],
+   "pl": [
+    165,
+    38
+   ]
+  }
+ },
+ {
+  "symbol": "CRASH900",
+  "class": "spike",
+  "depth_days": 365.0,
+  "n_candles": 525600,
+  "hints": [
+   {
+    "probe": "P6",
+    "key": "long_upper_wick",
+    "n": 353,
+    "p": 14.16,
+    "base": 16.28,
+    "delta": -2.11
+   },
+   {
+    "probe": "P7",
+    "key": "touch_prev_high",
+    "n": 185,
+    "p": 85.95,
+    "base": 83.72,
+    "delta": 2.22
+   }
+  ],
+  "base_p_up3": 83.72,
+  "n_jumps": 525588,
+  "jump_pct": 100.0,
+  "quiet_p50": 0,
+  "quiet_p90": 0,
+  "base_p_jump_in5": 100.0,
+  "conditional": {},
+  "round": {
+   "above_tot": 5,
+   "above_p": null,
+   "below_tot": 2,
+   "below_p": null
+  },
+  "anatomy": {
+   "up3": [
+    434863,
+    364112
+   ],
+   "down3": [
+    125,
+    17
+   ],
+   "lwick": [
+    332,
+    274
+   ],
+   "uwick": [
+    353,
+    50
+   ]
+  },
+  "prevday": {
+   "ph": [
+    185,
+    159
+   ],
+   "pl": [
+    172,
+    31
+   ]
+  }
+ },
+ {
+  "symbol": "JD100",
+  "class": "jump",
+  "depth_days": 365.0,
+  "n_candles": 525600,
+  "hints": [
+   {
+    "probe": "P7",
+    "key": "touch_prev_low",
+    "n": 205,
+    "p": 40.98,
+    "base": 50.29,
+    "delta": -9.32
+   }
+  ],
+  "base_p_up3": 49.71,
+  "n_jumps": 125,
+  "jump_pct": 0.02,
+  "quiet_p50": 2883,
+  "quiet_p90": 8967,
+  "base_p_jump_in5": 0.12,
+  "conditional": {
+   "0-4": [
+    504,
+    0.0
+   ],
+   "5-9": [
+    630,
+    0.32
+   ],
+   "10-14": [
+    628,
+    0.48
+   ],
+   "15-19": [
+    625,
+    0.0
+   ],
+   "20+": [
+    523083,
+    0.12
+   ]
+  },
+  "jump_dir_same_pct": 45.16,
+  "round": {
+   "above_tot": 8136,
+   "above_p": 50.23,
+   "below_tot": 7585,
+   "below_p": 50.07
+  },
+  "anatomy": {
+   "up3": [
+    64339,
+    31959
+   ],
+   "down3": [
+    67480,
+    33617
+   ],
+   "lwick": [
+    56669,
+    28060
+   ],
+   "uwick": [
+    57503,
+    28742
+   ]
+  },
+  "prevday": {
+   "ph": [
+    163,
+    78
+   ],
+   "pl": [
+    205,
+    84
+   ]
+  }
+ },
+ {
+  "symbol": "STPRNG",
+  "class": "synth",
+  "depth_days": 365.0,
+  "n_candles": 525600,
+  "hints": [
+   {
+    "probe": "P5",
+    "key": "above_round",
+    "n": 1198,
+    "p": 49.75,
+    "base": 46.84,
+    "delta": 2.9
+   },
+   {
+    "probe": "P5",
+    "key": "below_round",
+    "n": 563,
+    "p": 45.29,
+    "base": 53.16,
+    "delta": -7.86
+   },
+   {
+    "probe": "P6",
+    "key": "after_3down",
+    "n": 65506,
+    "p": 47.29,
+    "base": 53.16,
+    "delta": -5.86
+   },
+   {
+    "probe": "P6",
+    "key": "long_upper_wick",
+    "n": 60462,
+    "p": 47.04,
+    "base": 53.16,
+    "delta": -6.11
+   },
+   {
+    "probe": "P7",
+    "key": "touch_prev_high",
+    "n": 179,
+    "p": 44.13,
+    "base": 46.84,
+    "delta": -2.71
+   },
+   {
+    "probe": "P7",
+    "key": "touch_prev_low",
+    "n": 182,
+    "p": 48.9,
+    "base": 53.16,
+    "delta": -4.25
+   }
+  ],
+  "base_p_up3": 46.84,
+  "continuous": {
+   "h2_p_up": 46.25,
+   "h3_p_up": 46.84,
+   "h5_p_up": 47.56,
+   "after_down4_rev_p_up2": [
+    21865,
+    46.69
+   ],
+   "after_up4_rev_p_down2": [
+    9389,
+    46.38
+   ],
+   "hour_p_up_h3": {
+    "0": 47.25,
+    "4": 46.8,
+    "8": 46.91,
+    "12": 46.58,
+    "16": 46.66,
+    "20": 46.86
+   }
+  },
+  "round": {
+   "above_tot": 1198,
+   "above_p": 49.75,
+   "below_tot": 563,
+   "below_p": 45.29
+  },
+  "anatomy": {
+   "up3": [
+    65500,
+    30541
+   ],
+   "down3": [
+    65506,
+    30981
+   ],
+   "lwick": [
+    61155,
+    28801
+   ],
+   "uwick": [
+    60462,
+    28443
+   ]
+  },
+  "prevday": {
+   "ph": [
+    179,
+    79
+   ],
+   "pl": [
+    182,
+    89
+   ]
+  }
  }
 ]
