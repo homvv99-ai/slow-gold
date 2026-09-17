@@ -396,8 +396,11 @@ def add_hint(res, probe, key, tot, hit, base_pct, min_n, min_delta):
     return None
 
 def explore_asset(link, sym):
+    cls = classify_asset(sym)
+    gran = 300 if cls == "market" else 60
+    per_day = 288 if gran == 300 else 1440
     try:
-        cs = candles(link, sym, 60, CFG.get("explore_days", 365) * 1440)
+        cs = candles(link, sym, gran, CFG.get("explore_days", 365) * per_day)
     except SystemExit:
         log("SKIP", sym, "fetch error")
         return None
@@ -406,7 +409,6 @@ def explore_asset(link, sym):
         log("SKIP", sym, "short depth", n)
         return None
     depth = round((cs[-1]["epoch"] - cs[0]["epoch"]) / 86400.0, 1)
-    cls = classify_asset(sym)
     closes = [c["close"] for c in cs]
     ranges = [c["high"] - c["low"] for c in cs]
     min_n = CFG.get("hint_min_n", 300)
@@ -581,7 +583,7 @@ def explore_asset(link, sym):
     res["anatomy"] = an
     day_agg = {}
     for i in range(n):
-        dk = cs[i]["epoch"] // 86400
+        dk = cs[i]["epoch"] // (86400 if gran == 60 else 86400)
         a = day_agg.get(dk)
         if a is None:
             day_agg[dk] = [cs[i]["high"], cs[i]["low"]]
