@@ -31,7 +31,7 @@ class Link:
                 self.w.close()
         except Exception:
             pass
-        self.w = connect()
+        try:
     def close(self):
         try:
             if self.w is not None:
@@ -47,7 +47,7 @@ class Link:
                 w = self.get()
                 w.send(json.dumps(payload))
                 r = json.loads(w.recv())
-            except Exception as e:
+            except BaseException as e:
                 last = e
                 self.reset()
                 time.sleep(2)
