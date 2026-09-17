@@ -688,8 +688,39 @@ def payouts():
         return
     log("payouts ws door", u[:70])
     w = websocket.create_connection(u, timeout=30)
+    field = None
+    for f in ["symbol", "underlying", "underlying_symbol", "asset", "instrument"]:
+        payload = {"proposal": 1, "amount": 1, "basis": "stake", "contract_type": "CALL",
+                   "currency": "USD", "duration": 120, "duration_unit": "s"}
+        payload[f] = "R_10"
+        try:
+            w.send(json.dumps(payload))
+            rr = json.loads(w.recv())
+        except Exception as e:
+            log("payouts ws dead", str(e)[:80])
+            return
+        code = rr.get("error", {}).get("code", "") if isinstance(rr, dict) else ""
+        msg = rr.get("error", {}).get("message", "") if isinstance(rr, dict) else ""
+        log("schema try", f, code if code else "OK", msg[:80])
+        if isinstance(rr, dict) and "error" not in rr:
+            field = f
+            p = rr.get("proposal", {})
+            log("PAYOUT", "R_10", "CALL", 120, "s", "payout=", p.get("payout"), "ask=", p.get("ask_price"))
+            break
+        if code == "InputValidationFailed" and ("not allowed" in msg or "required" in msg.lower()):
+            continue
+        field = f
+        break
+    if not field:
+        log("payouts schema unknown")
+        try:
+            w.close()
+        except Exception:
+            pass
+        return
+    log("payouts field", field)
     grid = []
-    for sym in ["R_10", "R_75", "1HZ25V", "1HZ50V", "JD25", "JD10", "STPRNG",
+    for sym in ["R_75", "1HZ25V", "1HZ50V", "JD25", "JD10", "STPRNG",
                 "frxEURUSD", "frxXAUUSD"]:
         for typ in ["CALL", "PUT"]:
             for dur in [120, 180, 300]:
@@ -704,7 +735,8 @@ def payouts():
                 grid.append((sym, typ, dur, "m"))
     for sym, typ, dur, unit in grid:
         payload = {"proposal": 1, "amount": 1, "basis": "stake", "contract_type": typ,
-                   "currency": "USD", "duration": dur, "duration_unit": unit, "symbol": sym}
+                   "currency": "USD", "duration": dur, "duration_unit": unit}
+        payload[field] = sym
         if typ in ("ONETOUCH", "NOTOUCH"):
             payload["barrier"] = "+1%"
         ok = False
