@@ -16,7 +16,7 @@ def log(*a):
     print(STAMP, *a, flush=True)
 
 def connect():
-    return websocket.create_connection("wss://ws.derivws.com/websockets/v3?app_id=" + str(APP_ID), timeout=30)
+       return websocket.create_connection("wss://ws.derivws.com/websockets/v3?app_id=" + str(CFG.get("ws_app_id", "1089")), timeout=30)
 
 class Link:
     def __init__(self):
