@@ -661,35 +661,87 @@ def explore():
     log("explore complete assets=", len(report), "total_hints=", sum(len(r["hints"]) for r in report))
 
 def payouts():
-    link = Link()
-    try:
-        lid, bal, cur = authorize(link)
-        log("payouts auth ok", lid, bal, cur)
-    except BaseException as e:
-        log("payouts auth skip", str(e)[:100])
+    if not TOKEN:
+        log("payouts no token")
+        return
+    r = rest("GET", "/trading/v1/options/accounts")
+    if r.status_code != 200:
+        log("payouts accounts fail", r.status_code, r.text[:200])
+        return
+    j = r.json()
+    rows = j.get("data") if isinstance(j, dict) else j
+    if not isinstance(rows, list):
+        rows = []
+    ids = [a.get("account_id") for a in rows if isinstance(a, dict) and a.get("account_type") == "demo"]
+    if not ids:
+        ids = [a.get("account_id") for a in rows if isinstance(a, dict)]
+    if not ids:
+        log("payouts no accounts")
+        return
+    r2 = rest("POST", "/trading/v1/options/accounts/%s/otp" % ids[0])
+    if r2.status_code != 200:
+        log("payouts otp fail", r2.status_code, r2.text[:200])
+        return
+    u = find_ws_url(r2.json())
+    if not u:
+        log("payouts no ws url")
+        return
+    log("payouts ws door", u[:70])
+    w = websocket.create_connection(u, timeout=30)
     grid = []
     for sym in ["R_10", "R_75", "1HZ25V", "1HZ50V", "JD25", "JD10", "STPRNG",
-                "BOOM300N", "BOOM600", "CRASH600", "CRASH1000", "frxEURUSD", "frxXAUUSD"]:
+                "frxEURUSD", "frxXAUUSD"]:
         for typ in ["CALL", "PUT"]:
             for dur in [120, 180, 300]:
                 grid.append((sym, typ, dur, "s"))
     for sym in ["BOOM300N", "BOOM600", "CRASH600", "CRASH1000"]:
+        for typ in ["CALL", "PUT"]:
+            for dur in [5, 10]:
+                grid.append((sym, typ, dur, "t"))
+    for sym in ["BOOM300N", "CRASH1000"]:
         for typ in ["ONETOUCH", "NOTOUCH"]:
-            for dur in [5, 10, 15]:
+            for dur in [5, 10]:
                 grid.append((sym, typ, dur, "m"))
     for sym, typ, dur, unit in grid:
-        r = link.call({"proposal": 1, "amount": 1, "basis": "stake", "contract_type": typ,
-                       "currency": "USD", "duration": dur, "duration_unit": unit, "symbol": sym})
-        if "error" in r:
-            log("PAYOUT", sym, typ, dur, unit, "ERR", r["error"].get("code", "?"), r["error"].get("message", "")[:100])
+        payload = {"proposal": 1, "amount": 1, "basis": "stake", "contract_type": typ,
+                   "currency": "USD", "duration": dur, "duration_unit": unit, "symbol": sym}
+        if typ in ("ONETOUCH", "NOTOUCH"):
+            payload["barrier"] = "+1%"
+        ok = False
+        rr = None
+        for attempt in range(3):
+            try:
+                w.send(json.dumps(payload))
+                rr = json.loads(w.recv())
+                ok = True
+                break
+            except Exception as e:
+                log("payouts ws retry", attempt, str(e)[:80])
+                time.sleep(2)
+        if not ok:
+            log("PAYOUT", sym, typ, dur, unit, "ERR", "ws-dead")
+            break
+        if isinstance(rr, dict) and rr.get("error", {}).get("code", "") == "RateLimit":
+            time.sleep(20)
+            try:
+                w.send(json.dumps(payload))
+                rr = json.loads(w.recv())
+            except Exception:
+                log("PAYOUT", sym, typ, dur, unit, "ERR", "ws-dead")
+                break
+        if isinstance(rr, dict) and "error" in rr:
+            log("PAYOUT", sym, typ, dur, unit, "ERR", rr["error"].get("code", "?"), rr["error"].get("message", "")[:100])
         else:
-            p = r["proposal"]
+            p = rr.get("proposal", {}) if isinstance(rr, dict) else {}
             payout = float(p.get("payout", 0))
             ask = float(p.get("ask_price", 1))
             ratio = round((payout / ask - 1) * 100, 2) if ask > 0 else 0
             log("PAYOUT", sym, typ, dur, unit, "payout=", payout, "ask=", ask, "return%=", ratio)
         time.sleep(1.2)
-    link.close()
+    try:
+        w.close()
+    except Exception:
+        pass
     log("payouts done")
 
 def probe():
