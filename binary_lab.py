@@ -908,6 +908,13 @@ def push_repo(msg):
     ref = os.environ.get("GITHUB_REF_NAME", "main")
     os.system('git add -f site/data/lab_state.json site/data/lab_ledger_live.json 2>/dev/null; git commit -m "' + msg + '" && git push origin HEAD:' + ref)
 
+def tg_safe(st, text):
+    try:
+        tg(text)
+    except Exception:
+        pass
+    st["events"].append([int(time.time()), "tg", text[:80]])
+
 def live():
     st = load_state()
     now = int(time.time())
@@ -1005,13 +1012,6 @@ def live():
     push_repo("lab: state pulse")
     log("live pulse done")
 
-def tg_safe(st, text):
-    try:
-        tg(text)
-    except Exception:
-        pass
-    st["events"].append([int(time.time()), "tg", text[:80]])
-
 def build_ctx(link, st, row, cs, today):
     ctx = {}
     sym = row["sym"]
@@ -1095,9 +1095,14 @@ def exec_buy(st, door, row, cell):
 def settle(link, st, row, cell, now):
     o = cell["open"]
     try:
-        cs = candles(link, row["sym"], 60, 5)
-    except SystemExit:
-        return
+        w = link.get()
+        w.send(json.dumps({"ticks_history": row["sym"], "adjust_start_time": 1,
+                           "count": 2, "end": str(o["expiry"] + 59),
+                           "granularity": 60, "style": "candles"}))
+        r = json.loads(w.recv())
+        cs = r.get("candles", [])
+    except Exception:
+        cs = []
     if not cs:
         return
     exit_px = cs[-1]["close"]
@@ -1109,7 +1114,7 @@ def settle(link, st, row, cell, now):
     cell["last20"].append(1 if win else 0)
     cell["last20"] = cell["last20"][-20:]
     st["ledger"].append([o["epoch"], row["id"], o["dir"], o["entry"], exit_px, o["stake"], o["pay"], 1 if win else 0, round(pnl, 4), 1 if o["paper"] else 0])
-    eq = sum(x[8] for x in st["ledger"])
+    eq = 100.0 + sum(x[8] for x in st["ledger"])
     st["peak"] = max(st.get("peak", 0.0), eq)
     if len(cell["last20"]) >= 20 and sum(cell["last20"]) <= 8:
         cell["status"] = "asleep"
@@ -1153,7 +1158,6 @@ def remeasure(link, row):
     wins = 0
     n = 0
     for i in range(3, len(cs) - 4):
-        t = cs[i]["epoch"] + 60
         dk = cs[i]["epoch"] // 86400
         prev = None
         for k in keys:
