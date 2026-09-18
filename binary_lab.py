@@ -1,4 +1,4 @@
-import json, os, sys, time, datetime, bisect, math
+import json, os, sys, time, datetime, bisect, math, hashlib, base64
 import websocket
 import requests
 
@@ -8,6 +8,7 @@ CFG = json.load(open("lab_config.json", encoding="utf-8"))
 TOKEN = os.environ.get("DERIV_TOKEN", "")
 TG_TOKEN = os.environ.get("TELEGRAM_TOKEN", "")
 TG_CHAT = os.environ.get("TELEGRAM_CHAT", "")
+ENC_KEY = os.environ.get("LAB_ENC_KEY", "")
 OUT = "site/data"
 ACTION = sys.argv[1] if len(sys.argv) > 1 else "probe"
 APP_ID = CFG.get("app_id", "1089")
@@ -22,6 +23,34 @@ TABLES = [
 
 def log(*a):
     print(STAMP, *a, flush=True)
+
+def _keystream(key, n, salt):
+    out = b""
+    ctr = 0
+    while len(out) < n:
+        out += hashlib.sha256((key + "|" + salt + "|" + str(ctr)).encode()).digest()
+        ctr += 1
+    return out[:n]
+
+def enc_text(s):
+    if not ENC_KEY:
+        return s
+    salt = base64.b64encode(os.urandom(8)).decode()
+    raw = s.encode("utf-8")
+    ks = _keystream(ENC_KEY, len(raw), salt)
+    x = bytes(a ^ b for a, b in zip(raw, ks))
+    return "ENC1:" + salt + ":" + base64.b64encode(x).decode()
+
+def dec_text(s):
+    if not ENC_KEY or not s.startswith("ENC1:"):
+        return s
+    try:
+        _, salt, b64 = s.split(":", 2)
+        x = base64.b64decode(b64)
+        ks = _keystream(ENC_KEY, len(x), salt)
+        return bytes(a ^ b for a, b in zip(x, ks)).decode("utf-8")
+    except Exception:
+        return s
 
 def tg(text):
     if TG_TOKEN and TG_CHAT:
@@ -906,7 +935,8 @@ def rule_signal(rule, cs, i, ctx):
 
 def load_state():
     try:
-        return json.load(open(OUT + "/lab_state.json", encoding="utf-8"))
+        raw = open(OUT + "/lab_state.json", encoding="utf-8").read()
+        return json.loads(dec_text(raw))
     except Exception:
         return {"cells": {}, "ledger": [], "waits": [], "events": [], "peak": 0.0,
                 "tg_offset": 0, "day": "", "cache": {}, "halt": False, "paper": True,
@@ -916,7 +946,8 @@ def save_state(st):
     st["ledger"] = st["ledger"][-2000:]
     st["waits"] = st["waits"][-500:]
     st["events"] = st["events"][-500:]
-    json.dump(st, open(OUT + "/lab_state.json", "w", encoding="utf-8"), ensure_ascii=False)
+    txt = json.dumps(st, ensure_ascii=False)
+    open(OUT + "/lab_state.json", "w", encoding="utf-8").write(enc_text(txt))
 
 def push_repo(msg):
     ref = os.environ.get("GITHUB_REF_NAME", "main")
@@ -996,21 +1027,21 @@ def live():
         if s == 0 or cell["last_sig"] == c["epoch"]:
             continue
         cell["last_sig"] = c["epoch"]
+        log("SIG-RAW", cid, s, c["epoch"])
         delta = now - t
         gate_s = 180 if row["exam"] == "A" else 360
         if delta > gate_s:
             st["waits"].append([now, cid, "stale", delta])
-            continue
-        remaining = (t + row["dur"]) - now
-        if remaining < 90:
-            st["waits"].append([now, cid, "late", remaining])
             continue
         if door is None:
             door = otp_door()
         if not door:
             log("no door skip trade")
             continue
-        pay = live_payout(door, row, remaining)
+        pay = live_payout(door, row, row["dur"])
+        if pay is None:
+            door = otp_door()
+            pay = live_payout(door, row, row["dur"])
         if pay is None or pay < row["min_pay"]:
             st["waits"].append([now, cid, "pay", pay])
             continue
@@ -1020,11 +1051,11 @@ def live():
         stake = 1.0 if not st.get("paper") else 0.0
         if not st.get("paper") and cell["trades"] >= 100:
             stake = CFG.get("stake2", 5.0)
-        cell["open"] = {"entry": entry_px, "epoch": c["epoch"], "expiry": t + row["dur"],
+        cell["open"] = {"entry": entry_px, "epoch": c["epoch"], "expiry": now + row["dur"],
                         "pay": pay, "stake": stake, "dir": row["dir"], "paper": st.get("paper", True),
-                        "remaining": remaining}
+                        "remaining": row["dur"]}
         cell["day_trades"] += 1
-        log("SIGNAL", cid, row["sym"], row["dir"], "pay=", pay, "delta=", delta, "rem=", remaining, "paper=", st.get("paper"))
+        log("SIGNAL", cid, row["sym"], row["dir"], "pay=", pay, "delta=", delta, "paper=", st.get("paper"))
         if not st.get("paper") and st.get("buy_schema"):
             exec_buy(st, door, row, cell)
     if st.get("day", "") != today:
@@ -1091,6 +1122,7 @@ def live_payout(door, row, dur):
         w.close()
         if isinstance(rr, dict) and "error" not in rr:
             return (float(rr.get("proposal", {}).get("payout", 0)) - 1.0) * 100.0
+        log("pay err", rr.get("error", {}).get("code", "?") if isinstance(rr, dict) else "?", str(rr)[:80])
     except Exception as e:
         log("payout check fail", str(e)[:60])
     return None
