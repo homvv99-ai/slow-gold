@@ -6,14 +6,32 @@ MODE = open("lab_mode.txt", encoding="utf-8").read().strip().lower() or "demo"
 STAMP = "[MODE: %s]" % MODE.upper()
 CFG = json.load(open("lab_config.json", encoding="utf-8"))
 TOKEN = os.environ.get("DERIV_TOKEN", "")
-WS_URL = "wss://ws.derivws.com/websockets/v3?app_id=1089"
+TG_TOKEN = os.environ.get("TELEGRAM_TOKEN", "")
+TG_CHAT = os.environ.get("TELEGRAM_CHAT", "")
 OUT = "site/data"
 ACTION = sys.argv[1] if len(sys.argv) > 1 else "probe"
 APP_ID = CFG.get("app_id", "1089")
 API_BASE = "https://api.derivws.com"
 
+TABLES = [
+    {"id": "ST3D", "sym": "STPRNG", "rule": "after3down", "dir": "CALL", "dur": 180, "min_pay": 93, "exam": "A"},
+    {"id": "STUW", "sym": "STPRNG", "rule": "upperwick", "dir": "CALL", "dur": 180, "min_pay": 93, "exam": "A"},
+    {"id": "STBR", "sym": "STPRNG", "rule": "below_round", "dir": "CALL", "dur": 180, "min_pay": 93, "exam": "B"},
+    {"id": "JDAR", "sym": "JD25", "rule": "above_round", "dir": "CALL", "dur": 180, "min_pay": 89, "exam": "B"},
+]
+
 def log(*a):
     print(STAMP, *a, flush=True)
+
+def tg(text):
+    if TG_TOKEN and TG_CHAT:
+        try:
+            requests.post("https://api.telegram.org/bot" + TG_TOKEN + "/sendMessage",
+                          data={"chat_id": TG_CHAT, "text": text}, timeout=15)
+            return
+        except Exception as e:
+            log("tg fail", str(e)[:60])
+    log("CARD", text.replace("\n", " | ")[:300])
 
 def connect():
     return websocket.create_connection("wss://ws.derivws.com/websockets/v3?app_id=" + str(CFG.get("ws_app_id", "1089")), timeout=30)
@@ -83,16 +101,28 @@ def find_ws_url(j):
                 return u
     return None
 
-def authorize(link):
-    r = link.call({"authorize": TOKEN})
-    if "error" in r:
-        raise SystemExit(STAMP + " AUTH FAIL " + json.dumps(r["error"]))
-    a = r["authorize"]
-    return a["loginid"], float(a["balance"]), a["currency"]
+def otp_door():
+    r = rest("GET", "/trading/v1/options/accounts")
+    if r.status_code != 200:
+        return None
+    j = r.json()
+    rows = j.get("data") if isinstance(j, dict) else j
+    if not isinstance(rows, list):
+        rows = []
+    ids = [a.get("account_id") for a in rows if isinstance(a, dict) and a.get("account_type") == "demo"]
+    if not ids:
+        ids = [a.get("account_id") for a in rows if isinstance(a, dict)]
+    if not ids:
+        return None
+    r2 = rest("POST", "/trading/v1/options/accounts/%s/otp" % ids[0])
+    if r2.status_code != 200:
+        return None
+    return find_ws_url(r2.json())
 
 def candles(link, sym, gran, need):
     out = {}
     end = "latest"
+    pages = 0
     while len(out) < need:
         r = link.call({"ticks_history": sym, "adjust_start_time": 1, "count": 5000,
                        "end": end, "granularity": gran, "style": "candles"})
@@ -105,6 +135,9 @@ def candles(link, sym, gran, need):
             out[c["epoch"]] = c
         end = str(cs[0]["epoch"] - 1)
         if len(cs) < 5:
+            break
+        pages += 1
+        if pages > CFG.get("max_pages", 200):
             break
         time.sleep(0.25)
     return [out[k] for k in sorted(out)]
@@ -583,7 +616,7 @@ def explore_asset(link, sym):
     res["anatomy"] = an
     day_agg = {}
     for i in range(n):
-        dk = cs[i]["epoch"] // (86400 if gran == 60 else 86400)
+        dk = cs[i]["epoch"] // 86400
         a = day_agg.get(dk)
         if a is None:
             day_agg[dk] = [cs[i]["high"], cs[i]["low"]]
@@ -666,29 +699,11 @@ def payouts():
     if not TOKEN:
         log("payouts no token")
         return
-    r = rest("GET", "/trading/v1/options/accounts")
-    if r.status_code != 200:
-        log("payouts accounts fail", r.status_code, r.text[:200])
-        return
-    j = r.json()
-    rows = j.get("data") if isinstance(j, dict) else j
-    if not isinstance(rows, list):
-        rows = []
-    ids = [a.get("account_id") for a in rows if isinstance(a, dict) and a.get("account_type") == "demo"]
-    if not ids:
-        ids = [a.get("account_id") for a in rows if isinstance(a, dict)]
-    if not ids:
-        log("payouts no accounts")
-        return
-    r2 = rest("POST", "/trading/v1/options/accounts/%s/otp" % ids[0])
-    if r2.status_code != 200:
-        log("payouts otp fail", r2.status_code, r2.text[:200])
-        return
-    u = find_ws_url(r2.json())
+    u = otp_door()
     if not u:
-        log("payouts no ws url")
+        log("payouts no door")
         return
-    log("payouts ws door", u[:70])
+    log("payouts door ok", True)
     w = websocket.create_connection(u, timeout=30)
     field = None
     for f in ["symbol", "underlying", "underlying_symbol", "asset", "instrument"]:
@@ -786,32 +801,411 @@ def probe():
     if not TOKEN:
         log("no token in env")
         return
-    r = rest("GET", "/trading/v1/options/accounts")
-    log("accounts status", r.status_code, r.text[:300])
-    if r.status_code != 200:
-        return
-    j = r.json()
-    rows = j.get("data") if isinstance(j, dict) else j
-    if not isinstance(rows, list):
-        rows = []
-    ids = [a.get("account_id") for a in rows if isinstance(a, dict) and a.get("account_type") == "demo"]
-    if not ids:
-        ids = [a.get("account_id") for a in rows if isinstance(a, dict)]
-    log("account ids", ids)
-    if not ids:
-        return
-    r2 = rest("POST", "/trading/v1/options/accounts/%s/otp" % ids[0])
-    log("otp status", r2.status_code, r2.text[:300])
-    if r2.status_code != 200:
-        return
-    u = find_ws_url(r2.json())
-    log("ws url found", bool(u))
+    u = otp_door()
+    log("door found", bool(u))
     if u:
         w2 = websocket.create_connection(u, timeout=30)
         w2.send(json.dumps({"ping": 1}))
-        log("new ws first msg", w2.recv()[:200])
+        log("new ws first msg", w2.recv()[:120])
         w2.close()
         log("NEW API OK")
+
+def buyschema():
+    if not TOKEN:
+        log("buy no token")
+        return
+    u = otp_door()
+    if not u:
+        log("buy no door")
+        return
+    w = websocket.create_connection(u, timeout=30)
+    payload = {"proposal": 1, "amount": 1, "basis": "stake", "contract_type": "CALL",
+               "currency": "USD", "duration": 180, "duration_unit": "s",
+               "underlying_symbol": "R_10"}
+    w.send(json.dumps(payload))
+    rr = json.loads(w.recv())
+    if isinstance(rr, dict) and "error" in rr:
+        log("buy proposal err", rr["error"].get("code"), rr["error"].get("message", "")[:120])
+        return
+    p = rr.get("proposal", {})
+    pid = p.get("id")
+    log("buy proposal ok id=", bool(pid), "payout=", p.get("payout"), "ask=", p.get("ask_price"))
+    cands = [
+        ("ws-buy-id", {"buy": pid, "price": 1}),
+        ("ws-buy-contract", {"contract": {"buy": 1, "proposal_id": pid, "amount": 1, "basis": "stake"}}),
+        ("ws-purchase", {"purchase": pid, "amount": 1}),
+    ]
+    for name, msg in cands:
+        try:
+            w.send(json.dumps(msg))
+            r2 = json.loads(w.recv())
+            code = r2.get("error", {}).get("code", "") if isinstance(r2, dict) else ""
+            log("buy try", name, code if code else "OK", json.dumps(r2)[:200])
+            if isinstance(r2, dict) and "error" not in r2:
+                log("BUY SCHEMA FOUND", name)
+                break
+        except Exception as e:
+            log("buy try", name, "EXC", str(e)[:80])
+    try:
+        w.close()
+    except Exception:
+        pass
+    log("buyschema done")
+
+def rule_signal(rule, cs, i, ctx):
+    c = cs[i]
+    if rule == "after3down":
+        if i < 3:
+            return 0
+        return 1 if (cs[i]["close"] < cs[i]["open"] and cs[i - 1]["close"] < cs[i - 1]["open"] and cs[i - 2]["close"] < cs[i - 2]["open"]) else 0
+    if rule == "upperwick":
+        rng = c["high"] - c["low"]
+        body = abs(c["close"] - c["open"])
+        uw = c["high"] - max(c["open"], c["close"])
+        return 1 if (rng > 0 and uw >= 2 * body and uw >= 0.5 * rng) else 0
+    if rule in ("below_round", "above_round"):
+        med = ctx.get("med")
+        step = ctx.get("step")
+        a5 = ctx.get("a5")
+        if not med or not step or not a5:
+            return 0
+        bestd = 1e18
+        bestL = c["close"]
+        for s in (step / 10.0, step):
+            L = round(c["close"] / s) * s
+            d = abs(c["close"] - L)
+            if d < bestd:
+                bestd = d
+                bestL = L
+        if bestd > 0.1 * a5:
+            return 0
+        if rule == "below_round":
+            return 1 if c["close"] < bestL else 0
+        return 1 if c["close"] >= bestL else 0
+    if rule == "prevlow_touch":
+        pl = ctx.get("prev_low")
+        return 1 if (pl and c["low"] <= pl <= c["high"]) else 0
+    if rule == "prevhigh_touch":
+        ph = ctx.get("prev_high")
+        return 1 if (ph and c["low"] <= ph <= c["high"]) else 0
+    return 0
+
+def load_state():
+    try:
+        return json.load(open(OUT + "/lab_state.json", encoding="utf-8"))
+    except Exception:
+        return {"cells": {}, "ledger": [], "waits": [], "events": [], "peak": 0.0,
+                "tg_offset": 0, "day": "", "cache": {}, "halt": False, "paper": True,
+                "paper_until": 0, "buy_schema": ""}
+
+def save_state(st):
+    st["ledger"] = st["ledger"][-2000:]
+    st["waits"] = st["waits"][-500:]
+    st["events"] = st["events"][-500:]
+    json.dump(st, open(OUT + "/lab_state.json", "w", encoding="utf-8"), ensure_ascii=False)
+
+def push_repo(msg):
+    ref = os.environ.get("GITHUB_REF_NAME", "main")
+    os.system('git add -f site/data/lab_state.json site/data/lab_ledger_live.json 2>/dev/null; git commit -m "' + msg + '" && git push origin HEAD:' + ref)
+
+def live():
+    st = load_state()
+    now = int(time.time())
+    today = datetime.datetime.utcfromtimestamp(now).date().isoformat()
+    if st.get("halt"):
+        log("live halted by guard")
+        tg_safe(st, "🛑 البوت موقوف — قرار بشري مطلوب")
+        save_state(st)
+        return
+    if st.get("paper") and st.get("paper_until") and now > st["paper_until"]:
+        st["paper"] = False
+        st["events"].append([now, "ladder", "paper off, stake 1$"])
+        tg_safe(st, "💰 انتهى الورقي — الرهن 1$")
+    link = Link()
+    door = None
+    for row in TABLES:
+        cid = row["id"]
+        cell = st["cells"].setdefault(cid, {"status": "awake", "sleep_until": 0, "fails": 0,
+                                            "last20": [], "trades": 0, "wins": 0, "day_trades": 0,
+                                            "day": today, "open": None, "last_sig": 0})
+        if cell["day"] != today:
+            cell["day"] = today
+            cell["day_trades"] = 0
+        if cell["status"] == "buried":
+            continue
+        if cell["status"] == "asleep":
+            if now < cell["sleep_until"]:
+                continue
+            win7 = remeasure(link, row)
+            need = 100.0 / (1.0 + row["min_pay"] / 100.0) + 1.0
+            if win7 is not None and win7 >= need:
+                cell["status"] = "awake"
+                cell["last20"] = []
+                st["events"].append([now, cid, "wake win7=" + str(win7)])
+                tg_safe(st, "😴→🟢 " + cid + " استيقظت فوز7=" + str(win7))
+            else:
+                cell["fails"] += 1
+                if cell["fails"] >= 2:
+                    cell["status"] = "buried"
+                    st["events"].append([now, cid, "bury win7=" + str(win7)])
+                    tg_safe(st, "⚰️ " + cid + " دُفنت (فشلان)")
+                else:
+                    cell["sleep_until"] = now + 86400
+                    st["events"].append([now, cid, "sleep2 win7=" + str(win7)])
+            continue
+        try:
+            cs = candles(link, row["sym"], 60, 5000)
+        except SystemExit:
+            log("live fetch fail", row["sym"])
+            continue
+        if len(cs) < 100:
+            continue
+        i = len(cs) - 2
+        c = cs[i]
+        t = c["epoch"] + 60
+        if cell["open"] and now >= cell["open"]["expiry"]:
+            settle(link, st, row, cell, now)
+        if cell["open"]:
+            continue
+        cap = 50 if st.get("paper") or cell["trades"] < 500 else CFG.get("cap_real", 6)
+        if cell["day_trades"] >= cap:
+            continue
+        ctx = build_ctx(link, st, row, cs, today)
+        s = rule_signal(row["rule"], cs, i, ctx)
+        if s == 0 or cell["last_sig"] == c["epoch"]:
+            continue
+        cell["last_sig"] = c["epoch"]
+        if door is None:
+            door = otp_door()
+        if not door:
+            log("no door skip trade")
+            continue
+        pay = live_payout(door, row)
+        if pay is None or pay < row["min_pay"]:
+            st["waits"].append([now, cid, "pay", pay])
+            continue
+        stake = 1.0 if not st.get("paper") else 0.0
+        if not st.get("paper") and cell["trades"] >= 100:
+            stake = CFG.get("stake2", 5.0)
+        cell["open"] = {"entry": c["close"], "epoch": c["epoch"], "expiry": t + row["dur"],
+                        "pay": pay, "stake": stake, "dir": row["dir"], "paper": st.get("paper", True)}
+        cell["day_trades"] += 1
+        log("SIGNAL", cid, row["sym"], row["dir"], "pay=", pay, "paper=", st.get("paper"))
+        if not st.get("paper") and st.get("buy_schema"):
+            exec_buy(st, door, row, cell)
+    if st.get("day", "") != today:
+        st["day"] = today
+        daily_guardian(st, link, today)
+    handle_tg(st)
+    if int(datetime.datetime.utcfromtimestamp(now).hour) == CFG.get("card_hour", 21) and int(datetime.datetime.utcfromtimestamp(now).minute) >= 5 and st.get("card_day", "") != today:
+        st["card_day"] = today
+        send_card(st)
+    link.close()
+    save_state(st)
+    push_repo("lab: state pulse")
+    log("live pulse done")
+
+def tg_safe(st, text):
+    try:
+        tg(text)
+    except Exception:
+        pass
+    st["events"].append([int(time.time()), "tg", text[:80]])
+
+def build_ctx(link, st, row, cs, today):
+    ctx = {}
+    sym = row["sym"]
+    cache = st["cache"].get(sym)
+    if not cache or cache.get("day") != today:
+        try:
+            big = candles(link, sym, 60, 43200)
+        except SystemExit:
+            big = cs
+        closes = sorted(c["close"] for c in big)
+        med = closes[len(closes) // 2] if closes else 0
+        m = 10.0 ** math.floor(math.log10(med)) if med > 0 else 1.0
+        rngs = [c["high"] - c["low"] for c in big[-2000:]]
+        cache = {"day": today, "med": med, "step": m,
+                 "a5": sum(rngs) / len(rngs) if rngs else 0}
+        st["cache"][sym] = cache
+    ctx["med"] = cache.get("med")
+    ctx["step"] = cache.get("step")
+    ctx["a5"] = cache.get("a5")
+    day_agg = {}
+    for c in cs:
+        dk = c["epoch"] // 86400
+        a = day_agg.get(dk)
+        if a is None:
+            day_agg[dk] = [c["high"], c["low"]]
+        else:
+            if c["high"] > a[0]:
+                a[0] = c["high"]
+            if c["low"] < a[1]:
+                a[1] = c["low"]
+    keys = sorted(day_agg)
+    nowk = int(time.time()) // 86400
+    prev = None
+    for k in keys:
+        if k < nowk:
+            prev = day_agg[k]
+    if prev:
+        ctx["prev_high"] = prev[0]
+        ctx["prev_low"] = prev[1]
+    return ctx
+
+def live_payout(door, row):
+    try:
+        w = websocket.create_connection(door, timeout=20)
+        w.send(json.dumps({"proposal": 1, "amount": 1, "basis": "stake",
+                           "contract_type": row["dir"], "currency": "USD",
+                           "duration": row["dur"], "duration_unit": "s",
+                           "underlying_symbol": row["sym"]}))
+        rr = json.loads(w.recv())
+        w.close()
+        if isinstance(rr, dict) and "error" not in rr:
+            return float(rr.get("proposal", {}).get("payout", 0))
+    except Exception as e:
+        log("payout check fail", str(e)[:60])
+    return None
+
+def exec_buy(st, door, row, cell):
+    try:
+        w = websocket.create_connection(door, timeout=20)
+        w.send(json.dumps({"proposal": 1, "amount": cell["open"]["stake"], "basis": "stake",
+                           "contract_type": row["dir"], "currency": "USD",
+                           "duration": row["dur"], "duration_unit": "s",
+                           "underlying_symbol": row["sym"]}))
+        rr = json.loads(w.recv())
+        pid = rr.get("proposal", {}).get("id") if isinstance(rr, dict) else None
+        if not pid:
+            w.close()
+            return
+        msg = {"buy": pid, "price": cell["open"]["stake"]} if st["buy_schema"] == "ws-buy-id" else \
+              {"contract": {"buy": 1, "proposal_id": pid, "amount": cell["open"]["stake"], "basis": "stake"}} if st["buy_schema"] == "ws-buy-contract" else \
+              {"purchase": pid, "amount": cell["open"]["stake"]}
+        w.send(json.dumps(msg))
+        r2 = json.loads(w.recv())
+        w.close()
+        if isinstance(r2, dict) and "error" in r2:
+            log("buy exec err", r2["error"].get("code"))
+            cell["open"] = None
+    except Exception as e:
+        log("buy exec exc", str(e)[:80])
+
+def settle(link, st, row, cell, now):
+    o = cell["open"]
+    try:
+        cs = candles(link, row["sym"], 60, 5)
+    except SystemExit:
+        return
+    if not cs:
+        return
+    exit_px = cs[-1]["close"]
+    win = (exit_px > o["entry"]) if o["dir"] == "CALL" else (exit_px < o["entry"])
+    pnl = o["stake"] * (o["pay"] / 100.0) if win else -o["stake"]
+    cell["open"] = None
+    cell["trades"] += 1
+    cell["wins"] += 1 if win else 0
+    cell["last20"].append(1 if win else 0)
+    cell["last20"] = cell["last20"][-20:]
+    st["ledger"].append([o["epoch"], row["id"], o["dir"], o["entry"], exit_px, o["stake"], o["pay"], 1 if win else 0, round(pnl, 4), 1 if o["paper"] else 0])
+    eq = sum(x[8] for x in st["ledger"])
+    st["peak"] = max(st.get("peak", 0.0), eq)
+    if len(cell["last20"]) >= 20 and sum(cell["last20"]) <= 8:
+        cell["status"] = "asleep"
+        cell["sleep_until"] = now + 86400
+        st["events"].append([now, row["id"], "sleep 12/20"])
+        tg_safe(st, "😴 " + row["id"] + " نامت (12 خسارة/20)")
+    if st["peak"] - eq >= CFG.get("circuit", 10.0):
+        st["halt"] = True
+        st["events"].append([now, "BOT", "circuit 10%"])
+        tg_safe(st, "🛑 دائرة 10% — توقف كامل")
+    asleep_today = sum(1 for c in st["cells"].values() if c.get("status") == "asleep" and c.get("sleep_until", 0) > now - 86400)
+    if asleep_today >= 3:
+        st["halt"] = True
+        st["events"].append([now, "BOT", "3 cells asleep"])
+        tg_safe(st, "🛑 ثلاث خلايا نائمة — قرار بشري")
+
+def remeasure(link, row):
+    try:
+        cs = candles(link, row["sym"], 60, 10080)
+    except SystemExit:
+        return None
+    if len(cs) < 500:
+        return None
+    closes = sorted(c["close"] for c in cs)
+    med = closes[len(closes) // 2]
+    m = 10.0 ** math.floor(math.log10(med)) if med > 0 else 1.0
+    rngs = [c["high"] - c["low"] for c in cs[-2000:]]
+    ctx = {"med": med, "step": m, "a5": sum(rngs) / len(rngs) if rngs else 0}
+    day_agg = {}
+    for c in cs:
+        dk = c["epoch"] // 86400
+        a = day_agg.get(dk)
+        if a is None:
+            day_agg[dk] = [c["high"], c["low"]]
+        else:
+            if c["high"] > a[0]:
+                a[0] = c["high"]
+            if c["low"] < a[1]:
+                a[1] = c["low"]
+    keys = sorted(day_agg)
+    wins = 0
+    n = 0
+    for i in range(3, len(cs) - 4):
+        t = cs[i]["epoch"] + 60
+        dk = cs[i]["epoch"] // 86400
+        prev = None
+        for k in keys:
+            if k < dk:
+                prev = day_agg[k]
+        if prev:
+            ctx["prev_high"] = prev[0]
+            ctx["prev_low"] = prev[1]
+        if rule_signal(row["rule"], cs, i, ctx) == 1:
+            exit_px = cs[i + 3]["close"]
+            win = (exit_px > cs[i]["close"]) if row["dir"] == "CALL" else (exit_px < cs[i]["close"])
+            wins += 1 if win else 0
+            n += 1
+    return round(wins * 100.0 / n, 2) if n >= 30 else None
+
+def daily_guardian(st, link, today):
+    lines = ["📅 بطاقة " + today]
+    eq = sum(x[8] for x in st["ledger"])
+    lines.append("الرأس الورقي: " + str(round(100 + eq, 2)) + "$")
+    for row in TABLES:
+        cell = st["cells"].get(row["id"], {})
+        tr = cell.get("trades", 0)
+        w = cell.get("wins", 0)
+        wp = round(w * 100.0 / tr, 2) if tr else 0
+        lines.append(row["id"] + ": " + str(tr) + " صفقة فوز " + str(wp) + "% حالة " + cell.get("status", "awake"))
+    waits = len(st["waits"])
+    lines.append("فرص فائتة: " + str(waits))
+    tg_safe(st, "\n".join(lines))
+
+def send_card(st):
+    daily_guardian(st, None, st.get("day", ""))
+
+def handle_tg(st):
+    if not TG_TOKEN or not TG_CHAT:
+        return
+    try:
+        r = requests.get("https://api.telegram.org/bot" + TG_TOKEN + "/getUpdates",
+                         params={"offset": st.get("tg_offset", 0), "timeout": 5}, timeout=15).json()
+        for up in r.get("result", []):
+            st["tg_offset"] = up["update_id"] + 1
+            txt = up.get("message", {}).get("text", "")
+            if txt.startswith("/card"):
+                send_card(st)
+            elif txt.startswith("/ledger"):
+                last = st["ledger"][-15:]
+                tg("\n".join(str(x) for x in last) if last else "لا صفقات بعد")
+            elif txt.startswith("/sleeps"):
+                tg("\n".join(str(x) for x in st["events"][-15:]) if st["events"] else "لا أحداث")
+            elif txt.startswith("/waits"):
+                tg("\n".join(str(x) for x in st["waits"][-15:]) if st["waits"] else "لا فوائت")
+    except Exception as e:
+        log("tg poll fail", str(e)[:60])
 
 def backtest():
     days = CFG.get("backtest_days", 90)
@@ -854,13 +1248,12 @@ def backtest():
     json.dump(stats, open(OUT + "/lab_stats.json", "w", encoding="utf-8"), ensure_ascii=False, indent=1)
     log("backtest done", stats)
 
-def live():
-    log("live mode not implemented in this build")
-
 if ACTION == "payouts":
     payouts()
 elif ACTION == "probe":
     probe()
+elif ACTION == "buyschema":
+    buyschema()
 elif ACTION == "backtest":
     backtest()
 elif ACTION == "explore":
