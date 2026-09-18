@@ -26,9 +26,11 @@ def log(*a):
 def tg(text):
     if TG_TOKEN and TG_CHAT:
         try:
-            requests.post("https://api.telegram.org/bot" + TG_TOKEN + "/sendMessage",
-                          data={"chat_id": TG_CHAT, "text": text}, timeout=15)
-            return
+            rr = requests.post("https://api.telegram.org/bot" + TG_TOKEN + "/sendMessage",
+                               data={"chat_id": TG_CHAT, "text": text}, timeout=15)
+            if rr.status_code == 200:
+                return
+            log("tg http", rr.status_code, rr.text[:100])
         except Exception as e:
             log("tg fail", str(e)[:60])
     log("CARD", text.replace("\n", " | ")[:300])
@@ -949,7 +951,7 @@ def live():
                 cell["status"] = "awake"
                 cell["last20"] = []
                 st["events"].append([now, cid, "wake win7=" + str(win7)])
-                tg_safe(st, "😴→🟢 " + cid + " استيقظت فوز7=" + str(win7))
+                tg_safe(st, "😴→ " + cid + " استيقظت فوز7=" + str(win7))
             else:
                 cell["fails"] += 1
                 if cell["fails"] >= 2:
@@ -1063,7 +1065,7 @@ def live_payout(door, row):
         rr = json.loads(w.recv())
         w.close()
         if isinstance(rr, dict) and "error" not in rr:
-                        return (float(rr.get("proposal", {}).get("payout", 0)) - 1.0) * 100.0
+            return (float(rr.get("proposal", {}).get("payout", 0)) - 1.0) * 100.0
     except Exception as e:
         log("payout check fail", str(e)[:60])
     return None
@@ -1196,6 +1198,9 @@ def handle_tg(st):
     try:
         r = requests.get("https://api.telegram.org/bot" + TG_TOKEN + "/getUpdates",
                          params={"offset": st.get("tg_offset", 0), "timeout": 5}, timeout=15).json()
+        if not r.get("ok", True):
+            log("tg poll err", str(r.get("description"))[:100])
+            return
         for up in r.get("result", []):
             st["tg_offset"] = up["update_id"] + 1
             txt = up.get("message", {}).get("text", "")
