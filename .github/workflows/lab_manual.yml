@@ -1,0 +1,47 @@
+name: مختبر يدوي
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'probe|backtest|explore|payouts|buyschema'
+        required: false
+        default: 'buyschema'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: lab-manual
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      DERIV_TOKEN: ${{ secrets.DERIV_TOKEN }}
+      TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+      TELEGRAM_CHAT: ${{ secrets.TELEGRAM_CHAT }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: pip
+        run: pip install websocket-client requests
+      - name: run lab
+        run: |
+          git config --global user.name "slow-gold lab"
+          git config --global user.email "lab@slowgold.local"
+          ACTION="${{ github.event.inputs.action }}"
+          if [ -z "$ACTION" ]; then ACTION="buyschema"; fi
+          echo "ACTION=$ACTION"
+          python binary_lab.py "$ACTION"
+      - name: commit results
+        run: |
+          git add -f site/data 2>/dev/null || true
+          if ! git diff --cached --quiet; then
+            git commit -m "lab: manual results"
+            git push origin HEAD:${{ github.ref_name }}
+          fi
