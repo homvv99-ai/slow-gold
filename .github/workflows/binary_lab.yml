@@ -16,7 +16,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: lab
+    group: ${{ github.event_name == 'workflow_dispatch' && 'lab-manual' || 'lab' }}
   cancel-in-progress: false
 
 jobs:
