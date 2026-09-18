@@ -1063,7 +1063,7 @@ def live_payout(door, row):
         rr = json.loads(w.recv())
         w.close()
         if isinstance(rr, dict) and "error" not in rr:
-            return float(rr.get("proposal", {}).get("payout", 0))
+                        return (float(rr.get("proposal", {}).get("payout", 0)) - 1.0) * 100.0
     except Exception as e:
         log("payout check fail", str(e)[:60])
     return None
