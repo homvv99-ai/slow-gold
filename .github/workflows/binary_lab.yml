@@ -16,7 +16,7 @@ permissions:
   contents: write
 
 concurrency:
-        group: lab
+  group: lab
   cancel-in-progress: false
 
 jobs:
