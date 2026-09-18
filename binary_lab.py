@@ -144,6 +144,18 @@ def candles(link, sym, gran, need):
         time.sleep(0.25)
     return [out[k] for k in sorted(out)]
 
+def live_tick(link, sym):
+    try:
+        w = link.get()
+        w.send(json.dumps({"ticks": sym, "subscribe": False}))
+        r = json.loads(w.recv())
+        q = r.get("tick", {}).get("quote")
+        if q is not None:
+            return float(q)
+    except Exception as e:
+        log("tick fail", str(e)[:60])
+    return None
+
 def ema(v, n):
     k = 2.0 / (n + 1)
     e = None
@@ -908,7 +920,7 @@ def save_state(st):
 
 def push_repo(msg):
     ref = os.environ.get("GITHUB_REF_NAME", "main")
-    os.system('git add -f site/data/lab_state.json site/data/lab_ledger_live.json 2>/dev/null; git commit -m "' + msg + '" && git push origin HEAD:' + ref)
+    os.system('git add -f site/data/lab_state.json 2>/dev/null; git commit -m "' + msg + '" && git push origin HEAD:' + ref)
 
 def tg_safe(st, text):
     try:
@@ -984,29 +996,42 @@ def live():
         if s == 0 or cell["last_sig"] == c["epoch"]:
             continue
         cell["last_sig"] = c["epoch"]
+        delta = now - t
+        gate_s = 180 if row["exam"] == "A" else 360
+        if delta > gate_s:
+            st["waits"].append([now, cid, "stale", delta])
+            continue
+        remaining = (t + row["dur"]) - now
+        if remaining < 90:
+            st["waits"].append([now, cid, "late", remaining])
+            continue
         if door is None:
             door = otp_door()
         if not door:
             log("no door skip trade")
             continue
-        pay = live_payout(door, row)
+        pay = live_payout(door, row, remaining)
         if pay is None or pay < row["min_pay"]:
             st["waits"].append([now, cid, "pay", pay])
+            continue
+        entry_px = live_tick(link, row["sym"])
+        if entry_px is None:
             continue
         stake = 1.0 if not st.get("paper") else 0.0
         if not st.get("paper") and cell["trades"] >= 100:
             stake = CFG.get("stake2", 5.0)
-        cell["open"] = {"entry": c["close"], "epoch": c["epoch"], "expiry": t + row["dur"],
-                        "pay": pay, "stake": stake, "dir": row["dir"], "paper": st.get("paper", True)}
+        cell["open"] = {"entry": entry_px, "epoch": c["epoch"], "expiry": t + row["dur"],
+                        "pay": pay, "stake": stake, "dir": row["dir"], "paper": st.get("paper", True),
+                        "remaining": remaining}
         cell["day_trades"] += 1
-        log("SIGNAL", cid, row["sym"], row["dir"], "pay=", pay, "paper=", st.get("paper"))
+        log("SIGNAL", cid, row["sym"], row["dir"], "pay=", pay, "delta=", delta, "rem=", remaining, "paper=", st.get("paper"))
         if not st.get("paper") and st.get("buy_schema"):
             exec_buy(st, door, row, cell)
     if st.get("day", "") != today:
         st["day"] = today
         daily_guardian(st, link, today)
     handle_tg(st)
-    if int(datetime.datetime.utcfromtimestamp(now).hour) == CFG.get("card_hour", 21) and int(datetime.datetime.utcfromtimestamp(now).minute) >= 5 and st.get("card_day", "") != today:
+    if int(datetime.datetime.utcfromtimestamp(now).hour) == CFG.get("card_hour", 8) and st.get("card_day", "") != today:
         st["card_day"] = today
         send_card(st)
     link.close()
@@ -1055,12 +1080,12 @@ def build_ctx(link, st, row, cs, today):
         ctx["prev_low"] = prev[1]
     return ctx
 
-def live_payout(door, row):
+def live_payout(door, row, dur):
     try:
         w = websocket.create_connection(door, timeout=20)
         w.send(json.dumps({"proposal": 1, "amount": 1, "basis": "stake",
                            "contract_type": row["dir"], "currency": "USD",
-                           "duration": row["dur"], "duration_unit": "s",
+                           "duration": dur, "duration_unit": "s",
                            "underlying_symbol": row["sym"]}))
         rr = json.loads(w.recv())
         w.close()
@@ -1075,7 +1100,7 @@ def exec_buy(st, door, row, cell):
         w = websocket.create_connection(door, timeout=20)
         w.send(json.dumps({"proposal": 1, "amount": cell["open"]["stake"], "basis": "stake",
                            "contract_type": row["dir"], "currency": "USD",
-                           "duration": row["dur"], "duration_unit": "s",
+                           "duration": cell["open"]["remaining"], "duration_unit": "s",
                            "underlying_symbol": row["sym"]}))
         rr = json.loads(w.recv())
         pid = rr.get("proposal", {}).get("id") if isinstance(rr, dict) else None
