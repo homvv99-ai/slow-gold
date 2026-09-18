@@ -1,41 +1,47 @@
-name: lab
+name: مختبر
+
 on:
   workflow_dispatch:
     inputs:
       action:
-        description: "probe | backtest | explore | live"
+        description: 'action: probe|backtest|explore|payouts|buyschema|live'
         required: false
-        default: "probe"
+        default: 'probe'
+  schedule:
+    - cron: '*/5 * * * *'
+
+concurrency:
+  group: lab
+  cancel-in-progress: false
+
 jobs:
   run:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
+    timeout-minutes: 360
+    env:
+      DERIV_TOKEN: ${{ secrets.DERIV_TOKEN }}
+      TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+      TELEGRAM_CHAT: ${{ secrets.TELEGRAM_CHAT }}
     steps:
       - uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
-      - run: pip install websocket-client requests
+          python-version: '3.11'
+      - name: pip
+        run: pip install websocket-client requests
       - name: run lab
-        env:
-          DERIV_TOKEN: ${{ secrets.DERIV_TOKEN }}
-          ACTION: ${{ github.event.inputs.action || 'probe' }}
-        run: python binary_lab.py "$ACTION"
+        run: |
+          git config --global user.name "slow-gold lab"
+          git config --global user.email "lab@slowgold.local"
+          ACTION="${{ github.event.inputs.action }}"
+          if [ "${{ github.event_name }}" = "schedule" ]; then ACTION="live"; fi
+          if [ -z "$ACTION" ]; then ACTION="probe"; fi
+          echo "ACTION=$ACTION"
+          python binary_lab.py "$ACTION"
       - name: commit results
         run: |
-          git config user.name "slow-gold lab"
-          git config user.email "lab@slowgold.local"
-          echo "--- workspace check ---"
-          ls -la site/data || true
-          git status --short || true
-          git add -f site/data/lab_cells.json site/data/lab_stats.json site/data/lab_trades.json site/data/lab_live.json site/data/lab_explore.json || true
+          git add -f site/data 2>/dev/null || true
           if ! git diff --cached --quiet; then
             git commit -m "lab: results"
             git push origin HEAD:${{ github.ref_name }}
-            echo "--- committed and pushed ---"
-          else
-            echo "--- NOTHING STAGED: investigate ---"
           fi
