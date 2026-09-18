@@ -7,12 +7,10 @@ on:
         description: 'action: probe|backtest|explore|payouts|buyschema|live'
         required: false
         default: 'probe'
+  repository_dispatch:
+    types: [pulse]
   schedule:
     - cron: '*/5 * * * *'
-  workflow_run:
-    workflows: ['مختبر']
-    types: [completed]
-    branches: [main]
 
 permissions:
   contents: write
@@ -29,6 +27,7 @@ jobs:
       DERIV_TOKEN: ${{ secrets.DERIV_TOKEN }}
       TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
       TELEGRAM_CHAT: ${{ secrets.TELEGRAM_CHAT }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -42,7 +41,7 @@ jobs:
           git config --global user.email "lab@slowgold.local"
           ACTION="${{ github.event.inputs.action }}"
           if [ "${{ github.event_name }}" = "schedule" ]; then ACTION="live"; fi
-          if [ "${{ github.event_name }}" = "workflow_run" ]; then ACTION="live"; fi
+          if [ "${{ github.event_name }}" = "repository_dispatch" ]; then ACTION="live"; fi
           if [ -z "$ACTION" ]; then ACTION="probe"; fi
           echo "ACTION=$ACTION"
           python binary_lab.py "$ACTION"
@@ -53,3 +52,11 @@ jobs:
             git commit -m "lab: results"
             git push origin HEAD:${{ github.ref_name }}
           fi
+      - name: chain
+        if: success()
+        run: |
+          curl -s -o /dev/null -w "chain http %{http_code}\n" -X POST \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ github.repository }}/dispatches" \
+            -d '{"event_type":"pulse"}' || true
