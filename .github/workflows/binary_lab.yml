@@ -9,6 +9,10 @@ on:
         default: 'probe'
   schedule:
     - cron: '*/5 * * * *'
+  workflow_run:
+    workflows: ['مختبر']
+    types: [completed]
+    branches: [main]
 
 permissions:
   contents: write
@@ -38,6 +42,7 @@ jobs:
           git config --global user.email "lab@slowgold.local"
           ACTION="${{ github.event.inputs.action }}"
           if [ "${{ github.event_name }}" = "schedule" ]; then ACTION="live"; fi
+          if [ "${{ github.event_name }}" = "workflow_run" ]; then ACTION="live"; fi
           if [ -z "$ACTION" ]; then ACTION="probe"; fi
           echo "ACTION=$ACTION"
           python binary_lab.py "$ACTION"
