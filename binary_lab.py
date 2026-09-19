@@ -969,7 +969,6 @@ def load_state():
     st.setdefault("fw_alerted", False)
     return st
 
-
 def save_state(st):
     st["ledger"] = st["ledger"][-2000:]
     st["waits"] = st["waits"][-500:]
@@ -980,7 +979,7 @@ def save_state(st):
 
 def push_repo(msg):
     ref = os.environ.get("GITHUB_REF_NAME", "main")
-    os.system('git add -f site/data/lab_state.json 2>/dev/null; git commit -m "' + msg + '" && git push origin HEAD:' + ref)
+    os.system('git add -f site/data/lab_state.json site/data/lab_view.json 2>/dev/null; git commit -m "' + msg + '" && git push origin HEAD:' + ref)
 
 def tg_safe(st, text):
     try:
@@ -1023,7 +1022,9 @@ def live():
         st["buy_schema"] = "ws-buy-id"
     if st.get("halt"):
         log("live halted by guard")
-        tg_safe(st, "🛑 البوت موقوف — قرار بشري مطلوب")
+        if not st.get("halt_told"):
+            tg_safe(st, "🛑 البوت موقوف — قرار بشري مطلوب (رسالة واحدة — /menu للكابينة)")
+            st["halt_told"] = True
         save_state(st)
         return
     link = Link()
@@ -1143,7 +1144,11 @@ def live():
     if st.get("day", "") != today:
         st["day"] = today
         daily_guardian(st, link, today)
-    handle_tg(st)
+    try:
+        import cockpit
+        cockpit.handle_tg(st)
+    except Exception:
+        handle_tg(st)
     if int(datetime.datetime.utcfromtimestamp(now).hour) == CFG.get("card_hour", 8) and st.get("card_day", "") != today:
         st["card_day"] = today
         send_card(st)
