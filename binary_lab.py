@@ -135,6 +135,7 @@ def find_ws_url(j):
 def otp_door():
     r = rest("GET", "/trading/v1/options/accounts")
     if r.status_code != 200:
+        log("door http", r.status_code)
         return None
     j = r.json()
     rows = j.get("data") if isinstance(j, dict) else j
@@ -144,9 +145,11 @@ def otp_door():
     if not ids:
         ids = [a.get("account_id") for a in rows if isinstance(a, dict)]
     if not ids:
+        log("door no accounts")
         return None
     r2 = rest("POST", "/trading/v1/options/accounts/%s/otp" % ids[0])
     if r2.status_code != 200:
+        log("door otp http", r2.status_code)
         return None
     return find_ws_url(r2.json())
 
@@ -178,6 +181,9 @@ def live_tick(link, sym):
         w = link.get()
         w.send(json.dumps({"ticks": sym, "subscribe": False}))
         r = json.loads(w.recv())
+        if isinstance(r, dict) and "error" in r:
+            log("tick err", r["error"].get("code"), str(r)[:80])
+            return None
         q = r.get("tick", {}).get("quote")
         if q is not None:
             return float(q)
@@ -281,11 +287,11 @@ def rej(cs, i, e20, side):
     pbody = p["close"] - p["open"]
     rng = c["high"] - c["low"]
     if side == 1:
-        eng = body > 0 and pbody < 0 and c["close"] >= p["high"] and c["open"] <= p["close"]
+        eng = body > 0 and pbody < 0 and c["close"] >= p["high"] and c["open"] <= p["close"] and c["close"] > e20[i]
         pin = rng > 0 and (min(c["open"], c["close"]) - c["low"]) >= 2 * abs(body) and (c["close"] - c["low"]) >= 0.66 * rng
         rec = c["close"] > e20[i] and cs[i - 1]["close"] < e20[i - 1] and cs[i - 2]["close"] < e20[i - 2]
         return eng or pin or rec
-    eng = body < 0 and pbody > 0 and c["close"] <= p["low"] and c["open"] >= p["close"]
+    eng = body < 0 and pbody > 0 and c["close"] <= p["low"] and c["open"] >= p["close"] and c["close"] < e20[i]
     pin = rng > 0 and (c["high"] - max(c["open"], c["close"])) >= 2 * abs(body) and (c["high"] - c["close"]) >= 0.66 * rng
     rec = c["close"] < e20[i] and cs[i - 1]["close"] > e20[i - 1] and cs[i - 2]["close"] > e20[i - 2]
     return eng or pin or rec
@@ -529,7 +535,7 @@ def explore_asset(link, sym):
                 continue
             q += 1
             if i + K < n:
-                key = "0-4" if q < 5 else "5-9" if q < 10 else "10-14" if q < 15 else "15-19" if q < 20 else "20+"
+                key = "0-4" if q < 5 else "5-9" if q < 10 else "10-14" if q < 15 else "19-19" if q < 20 else "20+"
                 buckets[key][0] += 1
                 if any(is_jump[j] for j in range(i + 1, i + 1 + K)):
                     buckets[key][1] += 1
@@ -964,15 +970,15 @@ def live():
     st = load_state()
     now = int(time.time())
     today = datetime.datetime.utcfromtimestamp(now).date().isoformat()
+    if MODE == "demo":
+        st["paper"] = False
+    if not st.get("buy_schema"):
+        st["buy_schema"] = "ws-buy-id"
     if st.get("halt"):
         log("live halted by guard")
         tg_safe(st, "🛑 البوت موقوف — قرار بشري مطلوب")
         save_state(st)
         return
-    if st.get("paper") and st.get("paper_until") and now > st["paper_until"]:
-        st["paper"] = False
-        st["events"].append([now, "ladder", "paper off, stake 1$"])
-        tg_safe(st, "💰 انتهى الورقي — الرهن 1$")
     link = Link()
     door = None
     for row in TABLES:
@@ -1019,7 +1025,7 @@ def live():
             settle(link, st, row, cell, now)
         if cell["open"]:
             continue
-        cap = 50 if st.get("paper") or cell["trades"] < 500 else CFG.get("cap_real", 6)
+        cap = 50 if cell["trades"] < 500 else CFG.get("cap_real", 6)
         if cell["day_trades"] >= cap:
             continue
         ctx = build_ctx(link, st, row, cs, today)
@@ -1032,32 +1038,41 @@ def live():
         gate_s = 180 if row["exam"] == "A" else 360
         if delta > gate_s:
             st["waits"].append([now, cid, "stale", delta])
+            log("PATH", cid, "stale delta=", delta)
             continue
         if door is None:
             door = otp_door()
+            if not door:
+                time.sleep(3)
+                door = otp_door()
+        log("PATH", cid, "delta=", delta, "door=", bool(door))
         if not door:
-            log("no door skip trade")
+            st["waits"].append([now, cid, "door", None])
+            st["events"].append([now, cid, "door dead"])
+            tg_safe(st, "🚪 الباب المالي ميت — فحص التوكن")
             continue
         pay = live_payout(door, row, row["dur"])
         if pay is None:
             door = otp_door()
             pay = live_payout(door, row, row["dur"])
+        log("PATH", cid, "pay=", pay)
         if pay is None or pay < row["min_pay"]:
             st["waits"].append([now, cid, "pay", pay])
             continue
         entry_px = live_tick(link, row["sym"])
         if entry_px is None:
-            continue
-        stake = 1.0 if not st.get("paper") else 0.0
-        if not st.get("paper") and cell["trades"] >= 100:
+            entry_px = cs[i]["close"]
+            log("tick fallback", cid, entry_px)
+        log("PATH", cid, "tick=", entry_px)
+        stake = 1.0
+        if cell["trades"] >= 100:
             stake = CFG.get("stake2", 5.0)
         cell["open"] = {"entry": entry_px, "epoch": c["epoch"], "expiry": now + row["dur"],
-                        "pay": pay, "stake": stake, "dir": row["dir"], "paper": st.get("paper", True),
+                        "pay": pay, "stake": stake, "dir": row["dir"], "paper": False,
                         "remaining": row["dur"]}
         cell["day_trades"] += 1
-        log("SIGNAL", cid, row["sym"], row["dir"], "pay=", pay, "delta=", delta, "paper=", st.get("paper"))
-        if not st.get("paper") and st.get("buy_schema"):
-            exec_buy(st, door, row, cell)
+        log("SIGNAL", cid, row["sym"], row["dir"], "pay=", pay, "delta=", delta, "stake=", stake)
+        exec_buy(st, door, row, cell)
     if st.get("day", "") != today:
         st["day"] = today
         daily_guardian(st, link, today)
@@ -1137,7 +1152,9 @@ def exec_buy(st, door, row, cell):
         rr = json.loads(w.recv())
         pid = rr.get("proposal", {}).get("id") if isinstance(rr, dict) else None
         if not pid:
+            log("buy no proposal", row["id"], str(rr)[:100])
             w.close()
+            cell["open"] = None
             return
         msg = {"buy": pid, "price": cell["open"]["stake"]} if st["buy_schema"] == "ws-buy-id" else \
               {"contract": {"buy": 1, "proposal_id": pid, "amount": cell["open"]["stake"], "basis": "stake"}} if st["buy_schema"] == "ws-buy-contract" else \
@@ -1146,8 +1163,11 @@ def exec_buy(st, door, row, cell):
         r2 = json.loads(w.recv())
         w.close()
         if isinstance(r2, dict) and "error" in r2:
-            log("buy exec err", r2["error"].get("code"))
+            log("buy exec err", r2["error"].get("code"), str(r2)[:120])
             cell["open"] = None
+        else:
+            b = r2.get("buy", {})
+            log("BUY OK", row["id"], "contract=", b.get("contract_id"), "balance=", b.get("balance_after"))
     except Exception as e:
         log("buy exec exc", str(e)[:80])
 
@@ -1172,7 +1192,7 @@ def settle(link, st, row, cell, now):
     cell["wins"] += 1 if win else 0
     cell["last20"].append(1 if win else 0)
     cell["last20"] = cell["last20"][-20:]
-    st["ledger"].append([o["epoch"], row["id"], o["dir"], o["entry"], exit_px, o["stake"], o["pay"], 1 if win else 0, round(pnl, 4), 1 if o["paper"] else 0])
+    st["ledger"].append([o["epoch"], row["id"], o["dir"], o["entry"], exit_px, o["stake"], o["pay"], 1 if win else 0, round(pnl, 4), 0])
     eq = 100.0 + sum(x[8] for x in st["ledger"])
     st["peak"] = max(st.get("peak", 0.0), eq)
     if len(cell["last20"]) >= 20 and sum(cell["last20"]) <= 8:
