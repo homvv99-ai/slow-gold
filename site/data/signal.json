@@ -1,9 +1,9 @@
 {
- "date": "2026-09-17",
+ "date": "2026-09-18",
  "state": "LONG",
- "price": 4345.87,
- "decision_price": 4154.68,
- "current_perf_pct": -0.02,
+ "price": 4370.33,
+ "decision_price": 4162.69,
+ "current_perf_pct": 0.54,
  "last_closed_trade": {
   "entry_date": "2025-08-27",
   "entry_price": 3378.0,
@@ -14,6 +14,6 @@
  },
  "entry_date": "2026-08-10",
  "entry_price": 4329.42,
- "days_in_state": 38,
- "generated_at": "2026-09-18 00:26:48"
+ "days_in_state": 39,
+ "generated_at": "2026-09-19 00:26:36"
 }
