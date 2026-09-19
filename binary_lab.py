@@ -1025,6 +1025,11 @@ def live():
         if not st.get("halt_told"):
             tg_safe(st, "🛑 البوت موقوف — قرار بشري مطلوب (رسالة واحدة — /menu للكابينة)")
             st["halt_told"] = True
+        try:
+            import cockpit
+            cockpit.handle_tg(st)
+        except Exception:
+            handle_tg(st)
         save_state(st)
         return
     link = Link()
@@ -1041,10 +1046,21 @@ def live():
                 tg_safe(st, "⚠️ القاطع: ظل " + cid + " أفضل من حيّه — الفلتر أُطفئ ذاتيًا")
     door = None
     for row in TABLES:
-        cid = row["id"]
-        cell = st["cells"].setdefault(cid, {"status": "awake", "sleep_until": 0, "fails": 0,
-                                            "last20": [], "trades": 0, "wins": 0, "day_trades": 0,
-                                            "day": today, "open": None, "last_sig": 0})
+        try:
+            cs = candles(link, row["sym"], 60, 5000)
+        except SystemExit:
+            log("live fetch fail", row["sym"])
+            continue
+        if len(cs) < 100:
+            continue
+        i = len(cs) - 2
+        c = cs[i]
+        t = c["epoch"] + 60
+        z = regime_z(cs, i)
+        regime = "down" if z < -1.0 else ("up" if z > 1.0 else "flat")
+        cell = st["cells"].setdefault(row["id"], {"status": "awake", "sleep_until": 0, "fails": 0,
+                                                  "last20": [], "trades": 0, "wins": 0, "day_trades": 0,
+                                                  "day": today, "open": None, "last_sig": 0})
         if cell["day"] != today:
             cell["day"] = today
             cell["day_trades"] = 0
@@ -1058,30 +1074,18 @@ def live():
             if win7 is not None and win7 >= need:
                 cell["status"] = "awake"
                 cell["last20"] = []
-                st["events"].append([now, cid, "wake win7=" + str(win7)])
-                tg_safe(st, "😴→ " + cid + " استيقظت فوز7=" + str(win7))
+                st["events"].append([now, row["id"], "wake win7=" + str(win7)])
+                tg_safe(st, "😴→ " + row["id"] + " استيقظت فوز7=" + str(win7))
             else:
                 cell["fails"] += 1
                 if cell["fails"] >= 2:
                     cell["status"] = "buried"
-                    st["events"].append([now, cid, "bury win7=" + str(win7)])
-                    tg_safe(st, "⚰️ " + cid + " دُفنت (فشلان)")
+                    st["events"].append([now, row["id"], "bury win7=" + str(win7)])
+                    tg_safe(st, "⚰️ " + row["id"] + " دُفنت (فشلان)")
                 else:
                     cell["sleep_until"] = now + 86400
-                    st["events"].append([now, cid, "sleep2 win7=" + str(win7)])
+                    st["events"].append([now, row["id"], "sleep2 win7=" + str(win7)])
             continue
-        try:
-            cs = candles(link, row["sym"], 60, 5000)
-        except SystemExit:
-            log("live fetch fail", row["sym"])
-            continue
-        if len(cs) < 100:
-            continue
-        i = len(cs) - 2
-        c = cs[i]
-        t = c["epoch"] + 60
-        z = regime_z(cs, i)
-        regime = "down" if z < -1.0 else ("up" if z > 1.0 else "flat")
         if cell["open"] and now >= cell["open"]["expiry"]:
             settle(link, st, row, cell, now)
         if cell["open"]:
@@ -1094,44 +1098,44 @@ def live():
         if s == 0 or cell["last_sig"] == c["epoch"]:
             continue
         cell["last_sig"] = c["epoch"]
-        log("SIG-RAW", cid, s, c["epoch"], "regime=", regime, "z=", round(z, 2))
+        log("SIG-RAW", row["id"], s, c["epoch"], "regime=", regime, "z=", round(z, 2))
         delta = now - t
         gate_s = 180 if row["exam"] == "A" else 360
         if delta > gate_s:
-            st["waits"].append([now, cid, "stale", delta])
-            log("PATH", cid, "stale delta=", delta)
+            st["waits"].append([now, row["id"], "stale", delta])
+            log("PATH", row["id"], "stale delta=", delta)
             continue
         kind = row.get("kind", "rev")
         blocked = (regime == "down" and kind == "rev" and row["dir"] == "CALL") or \
                   (regime == "up" and kind == "trend" and row["dir"] == "PUT")
         if blocked and not st.get("filter_off"):
-            st["shadow"].append([now, cid, row["sym"], row["dir"], c["close"], now + row["dur"]])
-            log("SHADOW", cid, row["dir"], "regime=", regime)
+            st["shadow"].append([now, row["id"], row["sym"], row["dir"], c["close"], now + row["dur"]])
+            log("SHADOW", row["id"], row["dir"], "regime=", regime)
             continue
         if door is None:
             door = otp_door()
             if not door:
                 time.sleep(3)
                 door = otp_door()
-        log("PATH", cid, "delta=", delta, "door=", bool(door), "regime=", regime)
+        log("PATH", row["id"], "delta=", delta, "door=", bool(door), "regime=", regime)
         if not door:
-            st["waits"].append([now, cid, "door", None])
-            st["events"].append([now, cid, "door dead"])
+            st["waits"].append([now, row["id"], "door", None])
+            st["events"].append([now, row["id"], "door dead"])
             tg_safe(st, "🚪 الباب المالي ميت — فحص التوكن")
             continue
         pay = live_payout(door, row, row["dur"])
         if pay is None:
             door = otp_door()
             pay = live_payout(door, row, row["dur"])
-        log("PATH", cid, "pay=", pay)
+        log("PATH", row["id"], "pay=", pay)
         if pay is None or pay < row["min_pay"]:
-            st["waits"].append([now, cid, "pay", pay])
+            st["waits"].append([now, row["id"], "pay", pay])
             continue
         entry_px = live_tick(link, row["sym"])
         if entry_px is None:
             entry_px = cs[i]["close"]
-            log("tick fallback", cid, entry_px)
-        log("PATH", cid, "tick=", entry_px)
+            log("tick fallback", row["id"], entry_px)
+        log("PATH", row["id"], "tick=", entry_px)
         stake = 1.0
         if cell["trades"] >= 100:
             stake = CFG.get("stake2", 5.0)
@@ -1139,7 +1143,7 @@ def live():
                         "pay": pay, "stake": stake, "dir": row["dir"], "paper": False,
                         "remaining": row["dur"]}
         cell["day_trades"] += 1
-        log("SIGNAL", cid, row["sym"], row["dir"], "pay=", pay, "delta=", delta, "stake=", stake, "regime=", regime)
+        log("SIGNAL", row["id"], row["sym"], row["dir"], "pay=", pay, "delta=", delta, "stake=", stake, "regime=", regime)
         exec_buy(st, door, row, cell)
     if st.get("day", "") != today:
         st["day"] = today
