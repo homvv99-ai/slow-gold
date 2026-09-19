@@ -957,12 +957,18 @@ def rule_signal(rule, cs, i, ctx):
 def load_state():
     try:
         raw = open(OUT + "/lab_state.json", encoding="utf-8").read()
-        return json.loads(dec_text(raw))
+        st = json.loads(dec_text(raw))
     except Exception:
-        return {"cells": {}, "ledger": [], "waits": [], "events": [], "peak": 0.0,
-                "tg_offset": 0, "day": "", "cache": {}, "halt": False, "paper": True,
-                "paper_until": 0, "buy_schema": "", "shadow": [], "shadow_stats": {},
-                "filter_off": False, "fw_alerted": False}
+        st = {"cells": {}, "ledger": [], "waits": [], "events": [], "peak": 0.0,
+              "tg_offset": 0, "day": "", "cache": {}, "halt": False, "paper": True,
+              "paper_until": 0, "buy_schema": "", "shadow": [], "shadow_stats": {},
+              "filter_off": False, "fw_alerted": False}
+    st.setdefault("shadow", [])
+    st.setdefault("shadow_stats", {})
+    st.setdefault("filter_off", False)
+    st.setdefault("fw_alerted", False)
+        return st
+
 
 def save_state(st):
     st["ledger"] = st["ledger"][-2000:]
