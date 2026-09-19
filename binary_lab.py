@@ -967,7 +967,7 @@ def load_state():
     st.setdefault("shadow_stats", {})
     st.setdefault("filter_off", False)
     st.setdefault("fw_alerted", False)
-        return st
+    return st
 
 
 def save_state(st):
