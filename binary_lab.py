@@ -1362,44 +1362,7 @@ def handle_tg(st):
     except Exception as e:
         log("tg poll fail", str(e)[:60])
 
-def duration_test():
-    link = Link()
-    days = CFG.get("backtest_days_v4", 30)
-    cs = candles(link, "STPRNG", 60, days * 1440)
-    link.close()
-    if not cs:
-        log("duration no data")
-        return
-    n = len(cs)
-    log("duration depth candles=", n)
-    rules = [("after3down", "CALL"), ("upperwick", "CALL"),
-             ("after3down", "PUT"), ("after3up", "CALL"), ("after3up", "PUT")]
-    durs = [60, 120, 180, 300]
-    out = []
-    for rule, d in rules:
-        fires = [i for i in range(3, n - 6) if rule_signal(rule, cs, i, {}) == 1]
-        for dur in durs:
-            off = dur // 60
-            wins = 0
-            tot = 0
-            for i in fires:
-                if i + off >= n:
-                    break
-                entry = cs[i]["close"]
-                exitp = cs[i + off]["close"]
-                win = (exitp > entry) if d == "CALL" else (exitp < entry)
-                wins += 1 if win else 0
-                tot += 1
-            wp = wins * 100.0 / tot if tot else 0.0
-            margin = wp - 100.0 / 1.95
-            out.append({"rule": rule, "dir": d, "dur": dur, "n": tot,
-                        "win_pct": round(wp, 2), "margin": round(margin, 2)})
-            log("DUR", rule, d, str(dur), "n=", tot, "win%=", round(wp, 2), "margin=", round(margin, 2))
-    json.dump(out, open(OUT + "/lab_durations.json", "w", encoding="utf-8"), ensure_ascii=False, indent=1)
-    push_repo("lab: duration test")
-    log("duration test done rows=", len(out))
-    
-    def backtest():
+def backtest():
     days = CFG.get("backtest_days", 90)
     days_v4 = CFG.get("backtest_days_v4", 30)
     cells = []
@@ -1450,7 +1413,7 @@ elif ACTION == "backtest":
     backtest()
 elif ACTION == "explore":
     explore()
-elif ACTION == "durations":
-    duration_test()
+elif ACTION == "live":
+    live()
 else:
     log("unknown action", ACTION)
