@@ -15,10 +15,12 @@ APP_ID = CFG.get("app_id", "1089")
 API_BASE = "https://api.derivws.com"
 
 TABLES = [
-    {"id": "ST3D", "sym": "STPRNG", "rule": "after3down", "dir": "CALL", "dur": 180, "min_pay": 93, "exam": "A"},
-    {"id": "STUW", "sym": "STPRNG", "rule": "upperwick", "dir": "CALL", "dur": 180, "min_pay": 93, "exam": "A"},
-    {"id": "STBR", "sym": "STPRNG", "rule": "below_round", "dir": "CALL", "dur": 180, "min_pay": 93, "exam": "B"},
-    {"id": "JDAR", "sym": "JD25", "rule": "above_round", "dir": "CALL", "dur": 180, "min_pay": 89, "exam": "B"},
+    {"id": "ST3D", "sym": "STPRNG", "rule": "after3down", "dir": "CALL", "dur": 180, "min_pay": 93, "exam": "A", "kind": "rev"},
+    {"id": "STUW", "sym": "STPRNG", "rule": "upperwick", "dir": "CALL", "dur": 180, "min_pay": 93, "exam": "A", "kind": "rev"},
+    {"id": "STBR", "sym": "STPRNG", "rule": "below_round", "dir": "CALL", "dur": 180, "min_pay": 93, "exam": "B", "kind": "round"},
+    {"id": "JDAR", "sym": "JD25", "rule": "above_round", "dir": "CALL", "dur": 180, "min_pay": 89, "exam": "B", "kind": "round"},
+    {"id": "PT3D", "sym": "STPRNG", "rule": "after3down", "dir": "PUT", "dur": 180, "min_pay": 93, "exam": "A", "kind": "trend"},
+    {"id": "CT3U", "sym": "STPRNG", "rule": "after3up", "dir": "CALL", "dur": 180, "min_pay": 93, "exam": "A", "kind": "trend"},
 ]
 
 def log(*a):
@@ -190,6 +192,15 @@ def live_tick(link, sym):
     except Exception as e:
         log("tick fail", str(e)[:60])
     return None
+
+def regime_z(cs, i):
+    if i < 31:
+        return 0.0
+    closes = [cs[j]["close"] for j in range(i - 30, i + 1)]
+    drift = closes[-1] - closes[0]
+    rngs = [cs[j]["high"] - cs[j]["low"] for j in range(i - 30, i + 1)]
+    a = sum(rngs) / len(rngs) if rngs else 0.0
+    return drift / a if a > 0 else 0.0
 
 def ema(v, n):
     k = 2.0 / (n + 1)
@@ -535,7 +546,7 @@ def explore_asset(link, sym):
                 continue
             q += 1
             if i + K < n:
-                key = "0-4" if q < 5 else "5-9" if q < 10 else "10-14" if q < 15 else "19-19" if q < 20 else "20+"
+                key = "0-4" if q < 5 else "5-9" if q < 10 else "10-14" if q < 15 else "15-19" if q < 20 else "20+"
                 buckets[key][0] += 1
                 if any(is_jump[j] for j in range(i + 1, i + 1 + K)):
                     buckets[key][1] += 1
@@ -907,6 +918,10 @@ def rule_signal(rule, cs, i, ctx):
         if i < 3:
             return 0
         return 1 if (cs[i]["close"] < cs[i]["open"] and cs[i - 1]["close"] < cs[i - 1]["open"] and cs[i - 2]["close"] < cs[i - 2]["open"]) else 0
+    if rule == "after3up":
+        if i < 3:
+            return 0
+        return 1 if (cs[i]["close"] > cs[i]["open"] and cs[i - 1]["close"] > cs[i - 1]["open"] and cs[i - 2]["close"] > cs[i - 2]["open"]) else 0
     if rule == "upperwick":
         rng = c["high"] - c["low"]
         body = abs(c["close"] - c["open"])
@@ -946,12 +961,14 @@ def load_state():
     except Exception:
         return {"cells": {}, "ledger": [], "waits": [], "events": [], "peak": 0.0,
                 "tg_offset": 0, "day": "", "cache": {}, "halt": False, "paper": True,
-                "paper_until": 0, "buy_schema": ""}
+                "paper_until": 0, "buy_schema": "", "shadow": [], "shadow_stats": {},
+                "filter_off": False, "fw_alerted": False}
 
 def save_state(st):
     st["ledger"] = st["ledger"][-2000:]
     st["waits"] = st["waits"][-500:]
     st["events"] = st["events"][-500:]
+    st["shadow"] = st.get("shadow", [])[-500:]
     txt = json.dumps(st, ensure_ascii=False)
     open(OUT + "/lab_state.json", "w", encoding="utf-8").write(enc_text(txt))
 
@@ -965,6 +982,30 @@ def tg_safe(st, text):
     except Exception:
         pass
     st["events"].append([int(time.time()), "tg", text[:80]])
+
+def settle_shadows(st, link, now):
+    due = [s for s in st.get("shadow", []) if now >= s[5] + 60]
+    if not due:
+        return
+    for s in due:
+        t0, cid, sym, d, entry, expiry = s
+        try:
+            w = link.get()
+            w.send(json.dumps({"ticks_history": sym, "adjust_start_time": 1,
+                               "count": 2, "end": str(expiry + 59),
+                               "granularity": 60, "style": "candles"}))
+            r = json.loads(w.recv())
+            cs = r.get("candles", [])
+        except Exception:
+            cs = []
+        if not cs:
+            continue
+        exit_px = cs[-1]["close"]
+        win = (exit_px > entry) if d == "CALL" else (exit_px < entry)
+        a = st["shadow_stats"].get(cid, [0, 0])
+        st["shadow_stats"][cid] = [a[0] + 1, a[1] + (1 if win else 0)]
+        log("SHADOW-SET", cid, d, "win=", 1 if win else 0, "n=", st["shadow_stats"][cid][0])
+    st["shadow"] = [s for s in st.get("shadow", []) if now < s[5] + 60]
 
 def live():
     st = load_state()
@@ -980,6 +1021,17 @@ def live():
         save_state(st)
         return
     link = Link()
+    settle_shadows(st, link, now)
+    for cid, a in list(st.get("shadow_stats", {}).items()):
+        cell = st["cells"].get(cid)
+        if a[0] >= 30 and cell and cell.get("trades", 0) >= 20:
+            sh_pct = a[1] * 100.0 / a[0]
+            lv_pct = cell["wins"] * 100.0 / cell["trades"]
+            if sh_pct >= lv_pct and not st.get("filter_off") and not st.get("fw_alerted"):
+                st["filter_off"] = True
+                st["fw_alerted"] = True
+                st["events"].append([now, cid, "tripwire shadow>=live"])
+                tg_safe(st, "⚠️ القاطع: ظل " + cid + " أفضل من حيّه — الفلتر أُطفئ ذاتيًا")
     door = None
     for row in TABLES:
         cid = row["id"]
@@ -1021,6 +1073,8 @@ def live():
         i = len(cs) - 2
         c = cs[i]
         t = c["epoch"] + 60
+        z = regime_z(cs, i)
+        regime = "down" if z < -1.0 else ("up" if z > 1.0 else "flat")
         if cell["open"] and now >= cell["open"]["expiry"]:
             settle(link, st, row, cell, now)
         if cell["open"]:
@@ -1033,19 +1087,26 @@ def live():
         if s == 0 or cell["last_sig"] == c["epoch"]:
             continue
         cell["last_sig"] = c["epoch"]
-        log("SIG-RAW", cid, s, c["epoch"])
+        log("SIG-RAW", cid, s, c["epoch"], "regime=", regime, "z=", round(z, 2))
         delta = now - t
         gate_s = 180 if row["exam"] == "A" else 360
         if delta > gate_s:
             st["waits"].append([now, cid, "stale", delta])
             log("PATH", cid, "stale delta=", delta)
             continue
+        kind = row.get("kind", "rev")
+        blocked = (regime == "down" and kind == "rev" and row["dir"] == "CALL") or \
+                  (regime == "up" and kind == "trend" and row["dir"] == "PUT")
+        if blocked and not st.get("filter_off"):
+            st["shadow"].append([now, cid, row["sym"], row["dir"], c["close"], now + row["dur"]])
+            log("SHADOW", cid, row["dir"], "regime=", regime)
+            continue
         if door is None:
             door = otp_door()
             if not door:
                 time.sleep(3)
                 door = otp_door()
-        log("PATH", cid, "delta=", delta, "door=", bool(door))
+        log("PATH", cid, "delta=", delta, "door=", bool(door), "regime=", regime)
         if not door:
             st["waits"].append([now, cid, "door", None])
             st["events"].append([now, cid, "door dead"])
@@ -1071,7 +1132,7 @@ def live():
                         "pay": pay, "stake": stake, "dir": row["dir"], "paper": False,
                         "remaining": row["dur"]}
         cell["day_trades"] += 1
-        log("SIGNAL", cid, row["sym"], row["dir"], "pay=", pay, "delta=", delta, "stake=", stake)
+        log("SIGNAL", cid, row["sym"], row["dir"], "pay=", pay, "delta=", delta, "stake=", stake, "regime=", regime)
         exec_buy(st, door, row, cell)
     if st.get("day", "") != today:
         st["day"] = today
@@ -1255,15 +1316,17 @@ def remeasure(link, row):
 def daily_guardian(st, link, today):
     lines = ["📅 بطاقة " + today]
     eq = sum(x[8] for x in st["ledger"])
-    lines.append("الرأس الورقي: " + str(round(100 + eq, 2)) + "$")
+    lines.append("الرأس: " + str(round(100 + eq, 2)) + "$")
     for row in TABLES:
         cell = st["cells"].get(row["id"], {})
         tr = cell.get("trades", 0)
         w = cell.get("wins", 0)
         wp = round(w * 100.0 / tr, 2) if tr else 0
         lines.append(row["id"] + ": " + str(tr) + " صفقة فوز " + str(wp) + "% حالة " + cell.get("status", "awake"))
-    waits = len(st["waits"])
-    lines.append("فرص فائتة: " + str(waits))
+    lines.append("فرص فائتة: " + str(len(st["waits"])))
+    sh = st.get("shadow_stats", {})
+    if sh:
+        lines.append("ظل: " + ", ".join(k + "=" + str(v[1]) + "/" + str(v[0]) for k, v in sh.items()))
     tg_safe(st, "\n".join(lines))
 
 def send_card(st):
